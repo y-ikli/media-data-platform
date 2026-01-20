@@ -1,0 +1,15 @@
+# Apache Airflow
+apache-airflow==2.9.3
+apache-airflow-providers-google==10.10.1
+
+# Data processing
+pandas>=2.0.0
+pyarrow>=14.0.0
+
+# Utilities
+python-dotenv>=1.0.0
+pendulum>=2.1.2
+
+# Testing
+pytest>=7.4.0
+pytest-cov>=4.1.0

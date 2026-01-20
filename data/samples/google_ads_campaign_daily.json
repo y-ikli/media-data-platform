@@ -1,0 +1,22 @@
+[
+  {
+    "date": "2024-01-01",
+    "account_id": "acc_001",
+    "campaign_id": "camp_001",
+    "campaign_name": "Brand Search",
+    "impressions": 1000,
+    "clicks": 50,
+    "spend": 120.50,
+    "conversions": 8
+  },
+  {
+    "date": "2024-01-02",
+    "account_id": "acc_001",
+    "campaign_id": "camp_001",
+    "campaign_name": "Brand Search",
+    "impressions": 1100,
+    "clicks": 55,
+    "spend": 130.00,
+    "conversions": 9
+  }
+]

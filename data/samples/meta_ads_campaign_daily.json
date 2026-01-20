@@ -1,0 +1,42 @@
+[
+  {
+    "date": "2024-01-01",
+    "account_id": "act_123456",
+    "campaign_id": "meta_camp_001",
+    "campaign_name": "Brand Awareness - FR",
+    "impressions": 8500,
+    "clicks": 320,
+    "spend": 95.75,
+    "conversions": 12
+  },
+  {
+    "date": "2024-01-02",
+    "account_id": "act_123456",
+    "campaign_id": "meta_camp_001",
+    "campaign_name": "Brand Awareness - FR",
+    "impressions": 9200,
+    "clicks": 355,
+    "spend": 102.30,
+    "conversions": 15
+  },
+  {
+    "date": "2024-01-01",
+    "account_id": "act_123456",
+    "campaign_id": "meta_camp_002",
+    "campaign_name": "Product Launch Q1",
+    "impressions": 12000,
+    "clicks": 480,
+    "spend": 145.00,
+    "conversions": 18
+  },
+  {
+    "date": "2024-01-02",
+    "account_id": "act_123456",
+    "campaign_id": "meta_camp_002",
+    "campaign_name": "Product Launch Q1",
+    "impressions": 11500,
+    "clicks": 460,
+    "spend": 138.50,
+    "conversions": 16
+  }
+]

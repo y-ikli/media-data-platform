@@ -1,0 +1,12 @@
+project:
+  project_id: data-pipeline-platform-484814
+  region: europe-west1
+
+datasets:
+  raw: mdp_raw
+  staging: mdp_staging
+  marts: mdp_marts
+
+ingestion:
+  timezone: UTC
+  start_date: "2024-01-01"

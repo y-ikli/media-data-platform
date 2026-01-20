@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.Python
+
+# Environment
+.env
+.env/
+
+# Logs
+*.log
+logs/
+
+# Airflow
+.airflow/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Documentation
+docs/intern_notes/
