@@ -160,6 +160,60 @@ Toutes les modifications notables du projet sont documentées ici.
 
 ---
 
+## [Partie 9] Qualité & Contrôles - 2026-01-20
+
+### Ajout
+- **Tests dbt avancés (55 tests total)** :
+  - Tests de fraîcheur: warn après 7j, error après 10j (`freshness` sur `mart_campaign_daily`)
+  - Tests SQL personnalisés (4 fichiers) :
+    - `test_kpi_calculations.sql`: Valide CTR, CPC, CPA
+    - `test_no_negative_metrics.sql`: Aucune métrique négative
+    - `test_ctr_not_exceeding_100_percent.sql`: CTR ≤ 100%
+    - `test_clicks_not_exceeding_impressions.sql`: Clicks ≤ impressions
+  - Tests de volumétrie: `at_least_one`, `recency`, `unique_combination_of_columns`
+
+- **Contrôles volumétrie automatisés** :
+  - Module Python `src/monitoring/volume_checks.py` (265 lignes)
+  - Fonction `get_volume_checks()`: valide 5 tables (raw, staging, marts)
+  - Seuils configurables: min (1-10), max (50k-100k), variance jour/jour (50-70%)
+  - Tâche Airflow `volume_check_task()` dans DAG principal (trigger rule: ALL_DONE)
+  - Rapports formatés avec détection d'anomalies (sous minimum, sur maximum, variance élevée)
+
+- **Table run_summary pour tracking des exécutions** :
+  - Schéma BigQuery `mdp_marts.run_summary` (28 colonnes, partitionné par `run_date`, clustered par `dag_id` + `status`)
+  - Vue `mdp_marts.vw_recent_runs` (30 derniers jours avec icônes de statut)
+  - Module Python `src/monitoring/run_logger.py` (230 lignes)
+  - Fonction `log_run_summary()`: logging automatique post-exécution
+  - Fonction `get_recent_runs()`: récupération des dernières exécutions
+  - Script d'initialisation `scripts/create_run_summary_table.sh`
+  - Intégration dans tâche `pipeline_summary` du DAG principal
+
+- **Documentation complète (730+ lignes)** :
+  - `docs/intern_notes/partie_9_tests_dbt.md`: Tests dbt avec cas d'échec
+  - `docs/intern_notes/partie_9_volume_checks.md`: Contrôles volumétrie
+  - `docs/intern_notes/partie_9_run_summary.md`: Table summary et requêtes
+  - `docs/intern_notes/partie_9_implementation.md`: Synthèse complète
+
+### Modifié
+- DAG `marketing_data_platform.py` enrichi :
+  - Import modules monitoring (`volume_checks`, `run_logger`)
+  - Tâche `volume_check_task()` ajoutée après `dbt_docs`
+  - Tâche `summary_task()` enrichie pour logging BigQuery
+  - Calcul statut global: `success`, `partial` (warning/erreur partielle), `failed`
+  - Tracking des erreurs (task + message)
+
+- Modèle dbt `dbt/mdp/models/marts/_models.yml` :
+  - Config freshness ajoutée
+  - Test `at_least_one` pour volumétrie minimale
+
+### Validation
+- 4/4 DAGs valides (`scripts/validate_dags.py`)
+- 55 tests dbt configurés et documentés
+- 5 tables avec contrôles volumétrie actifs
+- Table BigQuery `run_summary` prête à l'initialisation
+
+---
+
 ## Format
 Ce journal suit le format [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 

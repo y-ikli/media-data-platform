@@ -37,6 +37,14 @@ except ImportError as e:
     logging.error("Failed to import ingestion connectors: %s", e)
     raise
 
+# Import monitoring modules
+try:
+    from monitoring.volume_checks import get_volume_checks, format_volume_report  # type: ignore[import]
+    from monitoring.run_logger import log_run_summary  # type: ignore[import]
+except ImportError as e:
+    logging.error("Failed to import monitoring modules: %s", e)
+    raise
+
 
 @dag(
     dag_id="marketing_data_platform",
@@ -220,36 +228,134 @@ def marketing_data_platform():
             return {"status": "failed", "docs_generated": False, "error": str(e)}
 
     @task(
+        task_id="volume_control_check",
+        trigger_rule=TriggerRule.ALL_DONE,  # Run even if previous tasks fail
+    )
+    def volume_check_task() -> dict:
+        """
+        Execute volume control checks for all data tables.
+        Validates record counts and day-over-day variance.
+        """
+        try:
+            # Get GCP project ID from environment
+            import os
+            project_id = os.getenv("GCP_PROJECT_ID", "data-pipeline-platform-484814")
+            
+            logging.info("Starting volume control checks for project: %s", project_id)
+            
+            # Execute volume checks
+            results = get_volume_checks(project_id=project_id)
+            
+            # Format and log report
+            report = format_volume_report(results)
+            logging.info("Volume Check Report:\n%s", report)
+            
+            return {
+                "status": "completed",
+                "overall_status": results["summary"]["overall_status"],
+                "summary": results["summary"],
+                "report": report,
+            }
+            
+        except Exception as e:  # pylint: disable=broad-except
+            logging.error("Volume control check failed: %s", e)
+            return {
+                "status": "failed",
+                "overall_status": "ERROR",
+                "error": str(e),
+            }
+
+    @task(
         task_id="pipeline_summary",
         trigger_rule=TriggerRule.ALL_DONE,  # Always run to create summary
     )
     def summary_task(
         google_ads_result: dict,
         meta_ads_result: dict,
+        dbt_test_result: dict,
         dbt_docs_result: dict,
+        volume_check_result: dict,
         **context,
     ) -> dict:
         """
-        Generate a summary of the complete pipeline run.
+        Generate a summary of the complete pipeline run and log to BigQuery.
         Useful for monitoring and alerting.
         """
+        import os
+        from datetime import datetime
+        
         run_date = context["ds"]
+        run_id = context["run_id"]
+        dag_id = context["dag"].dag_id
+        execution_date = context["execution_date"]
+        
+        # Determine overall status
+        overall_status = "success"
+        error_message = None
+        error_task = None
+        
+        # Check for failures
+        if google_ads_result.get("status") == "failed":
+            overall_status = "partial"
+            error_task = "extract_google_ads"
+            error_message = google_ads_result.get("error", "Unknown error")
+        elif meta_ads_result.get("status") == "failed":
+            overall_status = "partial"
+            error_task = "extract_meta_ads"
+            error_message = meta_ads_result.get("error", "Unknown error")
+        elif not dbt_test_result.get("success", False):
+            overall_status = "partial"
+            error_task = "dbt_test"
+            error_message = "dbt tests failed"
+        elif volume_check_result.get("overall_status") == "FAIL":
+            overall_status = "partial"
+            error_task = "volume_check"
+            error_message = "Volume checks failed"
         
         summary = {
             "run_date": run_date,
-            "dag_id": context["dag"].dag_id,
-            "run_id": context["run_id"],
-            "status": "completed",
+            "dag_id": dag_id,
+            "run_id": run_id,
+            "status": overall_status,
             "sources": {
                 "google_ads": google_ads_result,
                 "meta_ads": meta_ads_result,
             },
             "dbt": {
+                "test": dbt_test_result,
                 "docs_generation": dbt_docs_result,
+            },
+            "monitoring": {
+                "volume_checks": volume_check_result,
             },
         }
         
         logging.info("Pipeline Summary: %s", summary)
+        
+        # Log to BigQuery
+        try:
+            project_id = os.getenv("GCP_PROJECT_ID", "data-pipeline-platform-484814")
+            log_result = log_run_summary(
+                project_id=project_id,
+                run_id=run_id,
+                dag_id=dag_id,
+                run_date=run_date,
+                execution_date=execution_date,
+                status=overall_status,
+                google_ads_result=google_ads_result,
+                meta_ads_result=meta_ads_result,
+                dbt_test_result=dbt_test_result,
+                dbt_docs_result=dbt_docs_result,
+                volume_check_result=volume_check_result,
+                error_message=error_message,
+                error_task=error_task,
+            )
+            logging.info("Run summary logged to BigQuery: %s", log_result)
+            summary["bigquery_log"] = log_result
+        except Exception as e:  # pylint: disable=broad-except
+            logging.error("Failed to log run summary to BigQuery: %s", e)
+            summary["bigquery_log"] = {"status": "failed", "error": str(e)}
+        
         return summary
 
     # ========== TASK DEPENDENCIES ==========
@@ -258,15 +364,18 @@ def marketing_data_platform():
     dbt_run = dbt_run_task()
     dbt_test = dbt_test_task()
     docs = dbt_docs_task()
+    volume_check = volume_check_task()
     
     # Both extractions run in parallel, then feed to dbt_run
-    [google_extract, meta_extract] >> dbt_run >> dbt_test >> docs
+    [google_extract, meta_extract] >> dbt_run >> dbt_test >> docs >> volume_check
     
-    # Summary depends on all extraction results and docs
+    # Summary depends on all tasks
     summary = summary_task(
         google_ads_result=google_extract,
         meta_ads_result=meta_extract,
+        dbt_test_result=dbt_test,
         dbt_docs_result=docs,
+        volume_check_result=volume_check,
     )
 
 

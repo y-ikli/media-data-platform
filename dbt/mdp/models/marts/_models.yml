@@ -7,6 +7,12 @@ models:
       This is the primary table for campaign analytics and reporting.
       All KPIs are calculated with safe division to handle zero denominators.
     
+    config:
+      freshness:
+        warn_after: {count: 7, period: day}
+        error_after: {count: 10, period: day}
+      loaded_at_field: mart_created_at
+    
     columns:
       - name: report_date
         description: Date of the performance metrics
@@ -92,8 +98,11 @@ models:
       
       - name: mart_created_at
         description: Timestamp when this mart record was created
+        tests:
+          - not_null
     
     data_tests:
+      # Uniqueness: combination of date + campaign + platform
       - dbt_utils.unique_combination_of_columns:
           arguments:
             combination_of_columns:
@@ -101,7 +110,11 @@ models:
               - campaign_id
               - platform
       
+      # Recency: ensure data is not stale (≤7 days)
       - dbt_utils.recency:
           arguments:
             datepart: day
             interval: 7
+      
+      # Volume check: at least 100 rows per day for health monitoring
+      - dbt_utils.at_least_one
