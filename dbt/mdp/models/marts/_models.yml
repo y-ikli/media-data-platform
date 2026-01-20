@@ -1,0 +1,107 @@
+version: 2
+
+models:
+  - name: mart_campaign_daily
+    description: >
+      BI-ready daily campaign performance metrics with calculated KPIs.
+      This is the primary table for campaign analytics and reporting.
+      All KPIs are calculated with safe division to handle zero denominators.
+    
+    columns:
+      - name: report_date
+        description: Date of the performance metrics
+        tests:
+          - not_null
+      
+      - name: campaign_id
+        description: Unique campaign identifier (unique per platform)
+        tests:
+          - not_null
+      
+      - name: account_id
+        description: Platform account identifier
+        tests:
+          - not_null
+      
+      - name: campaign_name
+        description: Campaign name
+      
+      - name: platform
+        description: Advertising platform source
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['google_ads', 'meta_ads']
+      
+      - name: impressions
+        description: Total impressions
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+      
+      - name: clicks
+        description: Total clicks
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+      
+      - name: spend
+        description: Total advertising spend in platform currency
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+      
+      - name: conversions
+        description: Total conversions
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+      
+      - name: ctr
+        description: Click-through rate (clicks / impressions). Null if impressions = 0
+      
+      - name: cpa
+        description: Cost per acquisition (spend / conversions). Null if conversions = 0
+      
+      - name: roas
+        description: Return on ad spend (conversions / spend). Null if spend = 0
+      
+      - name: cpc
+        description: Cost per click (spend / clicks). Null if clicks = 0
+      
+      - name: conversion_rate
+        description: Conversion rate (conversions / clicks). Null if clicks = 0
+      
+      - name: ingested_at
+        description: Timestamp when data was ingested into raw layer
+      
+      - name: extract_run_id
+        description: Unique identifier for the extraction run
+      
+      - name: extracted_at
+        description: Timestamp when data was extracted from source
+      
+      - name: mart_created_at
+        description: Timestamp when this mart record was created
+    
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - report_date
+              - campaign_id
+              - platform
+      
+      - dbt_utils.recency:
+          arguments:
+            datepart: day
+            interval: 7

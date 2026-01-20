@@ -1,0 +1,11 @@
+mdp:
+  target: dev
+  outputs:
+    dev:
+      type: bigquery
+      method: oauth
+      project: data-pipeline-platform-484814
+      dataset: mdp_staging
+      location: europe-west1
+      threads: 4
+      timeout_seconds: 300

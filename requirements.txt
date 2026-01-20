@@ -6,6 +6,10 @@ apache-airflow-providers-google==10.10.1
 pandas>=2.0.0
 pyarrow>=14.0.0
 
+# dbt
+dbt-core>=1.7.0
+dbt-bigquery>=1.7.0
+
 # Utilities
 python-dotenv>=1.0.0
 pendulum>=2.1.2

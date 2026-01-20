@@ -186,9 +186,17 @@ Reporting / Analyse / Data Products
 - Environnement reproductible (Docker Compose).
 
 ### En cours
-- Transformations dbt (staging, intermediate, marts).
-- Data marts analytiques avec KPI standards.
 - Déploiement BigQuery (infra cloud).
+- CI/CD et tests automatisés.
+
+### Complété ✅
+- **Partie 1:** Environnement local reproductible (Docker + Airflow)
+- **Partie 2:** Design BigQuery (datasets raw/staging/marts)
+- **Partie 3:** Ingestion Google Ads → Raw
+- **Partie 4:** Ingestion Meta Ads → Raw (multi-sources)
+- **Partie 5:** dbt Staging (standardisation des deux sources)
+- **Partie 6:** dbt Intermediate (unification cross-source)
+- **Partie 7:** dbt Marts (data products avec KPI)
 
 ---
 

@@ -1,0 +1,75 @@
+version: 2
+
+models:
+  - name: int_campaign_daily_unified
+    description: >
+      Unified cross-platform campaign daily performance data.
+      This model combines standardized data from both Google Ads and Meta Ads
+      into a single table with consistent schema.
+    
+    columns:
+      - name: report_date
+        description: Date of the performance metrics
+        tests:
+          - not_null
+      
+      - name: campaign_id
+        description: Unique campaign identifier (unique per platform)
+        tests:
+          - not_null
+      
+      - name: account_id
+        description: Platform account identifier
+        tests:
+          - not_null
+      
+      - name: campaign_name
+        description: Campaign name
+      
+      - name: platform
+        description: Advertising platform source
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['google_ads', 'meta_ads']
+      
+      - name: impressions
+        description: Total impressions across platform
+        tests:
+          - not_null
+      
+      - name: clicks
+        description: Total clicks across platform
+        tests:
+          - not_null
+      
+      - name: spend
+        description: Total spend across platform
+        tests:
+          - not_null
+      
+      - name: conversions
+        description: Total conversions across platform
+        tests:
+          - not_null
+      
+      - name: ingested_at
+        description: Timestamp when data was ingested into raw layer
+      
+      - name: extract_run_id
+        description: Unique identifier for the extraction run
+      
+      - name: extracted_at
+        description: Timestamp when data was extracted from source
+      
+      - name: unified_at
+        description: Timestamp when data was unified into this model
+    
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - report_date
+              - campaign_id
+              - platform

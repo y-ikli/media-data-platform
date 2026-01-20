@@ -62,3 +62,4 @@ def google_ads_ingestion_pipeline():
 
 
 # DAG instantiation
+google_ads_ingestion_pipeline()

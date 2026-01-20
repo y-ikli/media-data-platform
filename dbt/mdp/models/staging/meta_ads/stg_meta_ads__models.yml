@@ -1,0 +1,71 @@
+version: 2
+
+models:
+  - name: stg_meta_ads__campaign_daily
+    description: >
+      Staging model for Meta Ads (Facebook/Instagram) campaign daily performance data.
+      This model standardizes the raw Meta Ads data with consistent
+      naming conventions and data types.
+    
+    columns:
+      - name: report_date
+        description: Date of the performance metrics
+        tests:
+          - not_null
+      
+      - name: campaign_id
+        description: Unique identifier for the campaign
+        tests:
+          - not_null
+      
+      - name: account_id
+        description: Meta Ads account identifier
+        tests:
+          - not_null
+      
+      - name: campaign_name
+        description: Human-readable campaign name
+      
+      - name: platform
+        description: Platform source (always 'meta_ads')
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['meta_ads']
+      
+      - name: impressions
+        description: Number of times ads were displayed
+        tests:
+          - not_null
+      
+      - name: clicks
+        description: Number of clicks on ads
+        tests:
+          - not_null
+      
+      - name: spend
+        description: Total advertising spend
+        tests:
+          - not_null
+      
+      - name: conversions
+        description: Number of conversions tracked
+        tests:
+          - not_null
+      
+      - name: ingested_at
+        description: Timestamp when data was ingested into raw layer
+      
+      - name: extract_run_id
+        description: Unique identifier for the extraction run
+      
+      - name: extracted_at
+        description: Timestamp when data was extracted from source
+    
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns:
+              - report_date
+              - campaign_id

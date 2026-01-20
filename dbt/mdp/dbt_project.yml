@@ -1,0 +1,35 @@
+name: 'mdp'
+version: '1.0.0'
+profile: 'mdp'
+
+# Chemins
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+# Variables globales
+vars:
+  gcp_project: data-pipeline-platform-484814
+  raw_dataset: mdp_raw
+  staging_dataset: mdp_staging
+  marts_dataset: mdp_marts
+
+# Configuration des modèles par couche
+models:
+  mdp:
+    staging:
+      +materialized: view
+      +schema: staging
+    intermediate:
+      +materialized: view
+      +schema: intermediate
+    marts:
+      +materialized: table
+      +schema: marts
