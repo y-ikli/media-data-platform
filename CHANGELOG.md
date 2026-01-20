@@ -142,6 +142,24 @@ Toutes les modifications notables du projet sont documentées ici.
 
 ---
 
+## [Partie 8] Orchestration Airflow (end-to-end) - 2026-01-20
+
+### Ajout
+- DAG principal `dags/marketing_data_platform.py` (schedule `0 2 * * *`, catchup off) orchestrant :
+  - Extractions parallèles Google Ads + Meta Ads → raw
+  - `dbt_run` (staging → intermediate → marts) puis `dbt_test` (ALL_DONE)
+  - Génération `dbt docs` + tâche `pipeline_summary`
+- Paramètres run optionnels: `start_date`, `end_date` (ISO). Retries configurés (2 sur extract/dbt_run, 1 sur dbt_test), backoff 5 min.
+- Documentation : `dags/README.md`, `docs/dags/marketing_data_platform.md` (FR).
+- Script de validation des DAGs : `scripts/validate_dags.py` (4/4 DAGs valides).
+
+### Validation
+- Compilation Python OK pour les 4 DAGs (`validate_dags.py`).
+- Flux end-to-end prêt à être déclenché depuis l'UI ou la CLI Airflow.
+- Idempotence assurée par full refresh (extract + dbt).
+
+---
+
 ## Format
 Ce journal suit le format [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
