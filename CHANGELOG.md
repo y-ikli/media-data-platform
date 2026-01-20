@@ -214,6 +214,33 @@ Toutes les modifications notables du projet sont documentées ici.
 
 ---
 
+## [Partie 10] CI légère (crédibilité pro) - 2026-01-20
+
+### Ajout
+- **GitHub Actions CI** :
+  - Workflow `.github/workflows/ci.yml` (2 jobs, 9 étapes)
+  - Job `lint-and-test`: Lint Python (pylint) + tests unitaires (pytest) + validation DAGs
+  - Job `dbt-checks`: dbt deps + dbt compile + dbt parse
+  - Déclenchement automatique sur push/PR (branches main + develop)
+
+- **Tests unitaires (17 tests)** :
+  - `tests/unit/conftest.py`: Configuration pytest + PYTHONPATH
+  - `tests/unit/test_dags.py` (4 tests): Structure DAGs, syntaxe Python, tâches clés
+  - `tests/unit/test_dbt_structure.py` (6 tests): dbt_project.yml, modèles staging/marts, tests SQL
+  - `tests/unit/test_run_logger.py` (3 tests): Imports, signatures fonctions
+  - `tests/unit/test_volume_checks.py` (4 tests): Structure seuils, cohérence, formats
+
+- **Documentation** :
+  - `docs/intern_notes/partie_10_implementation.md`: CI complète avec cas de régression
+
+### Validation
+- 17/17 tests unitaires passing localement
+- Workflow CI prêt à l'exécution sur GitHub
+- 4/4 DAGs valides
+- dbt compile/parse réussis
+
+---
+
 ## Format
 Ce journal suit le format [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
