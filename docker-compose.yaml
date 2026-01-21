@@ -49,12 +49,14 @@ services:
       AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "false"
       AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "true"
       PYTHONPATH: /opt/airflow
+      GOOGLE_APPLICATION_CREDENTIALS: /opt/airflow/gcp-key.json
     volumes:
       - ./dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
       - ./plugins:/opt/airflow/plugins
       - ./src:/opt/airflow/src
       - ./data:/opt/airflow/data
+      - ~/gcp-key.json:/opt/airflow/gcp-key.json:ro
     ports:
       - "8080:8080"
     command: airflow webserver
@@ -72,12 +74,14 @@ services:
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
       AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "false"
       PYTHONPATH: /opt/airflow
+      GOOGLE_APPLICATION_CREDENTIALS: /opt/airflow/gcp-key.json
     volumes:
       - ./dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
       - ./plugins:/opt/airflow/plugins
       - ./src:/opt/airflow/src
       - ./data:/opt/airflow/data
+      - ~/gcp-key.json:/opt/airflow/gcp-key.json:ro
     command: airflow scheduler
     restart: unless-stopped
 
