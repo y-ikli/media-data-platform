@@ -34,7 +34,7 @@ jobs:
     
     - name: Run unit tests
       run: |
-        pytest tests/unit/ -v --cov=src --cov-report=term-missing
+        PYTHONPATH=src pytest tests/unit/ -v --cov=src --cov-report=term-missing
     
     - name: Validate DAGs syntax
       run: |
