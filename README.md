@@ -39,7 +39,7 @@ Architecture cloud-ready reposant sur :
 
 ## Quick Start
 
-### Mode Local (5 min) — Pas de GCP requis
+### Mode Local — Pas de GCP requis
 
 Parfait pour découvrir et développer localement.
 
@@ -64,7 +64,7 @@ docker compose up -d
 
 ---
 
-### Mode Production (10 min) — Avec BigQuery
+### Mode Production — Avec BigQuery
 
 Pour voir les vraies données écrites dans Google BigQuery.
 
@@ -94,7 +94,7 @@ GROUP BY source
 '
 ```
 
- **[Setup Détaillé](docs/BIGQUERY_SETUP.md)** — Guide complet pour intégration BigQuery
+ **[Setup Détaillé](docs/setup_bigquery.md)** — Guide complet pour intégration BigQuery
 
 ---
 
