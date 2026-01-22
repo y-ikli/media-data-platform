@@ -39,6 +39,8 @@ jobs:
       run: echo "PYTHONPATH=$(pwd)/src" >> $GITHUB_ENV
 
     - name: Run unit tests
+      env:
+        PYTHONPATH: ${{ env.PYTHONPATH }}
       run: pytest tests/unit/ -v --cov=src --cov-report=term-missing
     
     - name: Validate DAGs syntax
