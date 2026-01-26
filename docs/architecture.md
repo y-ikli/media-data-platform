@@ -190,24 +190,4 @@ PRIMARY KEY (date, platform, campaign_id)
 
 ---
 
-## Stack technique
 
-| Composant | Technologie | Version |
-|-----------|-------------|---------|
-| Orchestration | Apache Airflow | 2.9.3 |
-| Conteneurisation | Docker Compose | - |
-| Python | Python | 3.10+ |
-| Data Warehouse | BigQuery | - |
-| Transformations | dbt | (en cours) |
-| Ingestion | Python + APIs | - |
-| Versioning | Git | - |
-
----
-
-## Évolutions post-MVP
-
-- Ajout grains additionnels (adset, ad, keyword)
-- Data quality avancée (relationships, freshness checks)
-- Observabilité renforcée (metrics de run, SLA, alerting)
-- Optimisation BigQuery (clustering, materialized views)
-- Data contracts formalisés (schema versioning)
