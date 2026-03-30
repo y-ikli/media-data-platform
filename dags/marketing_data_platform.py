@@ -294,20 +294,20 @@ def marketing_data_platform():
         error_message = None
         error_task = None
         
-        # Check for failures
-        if google_ads_result.get("status") == "failed":
+        # Check for failures - extraction tasks return dict on success, None on failure
+        if not google_ads_result:
             overall_status = "partial"
             error_task = "extract_google_ads"
-            error_message = google_ads_result.get("error", "Unknown error")
-        elif meta_ads_result.get("status") == "failed":
+            error_message = "Google Ads extraction failed"
+        elif not meta_ads_result:
             overall_status = "partial"
             error_task = "extract_meta_ads"
-            error_message = meta_ads_result.get("error", "Unknown error")
-        elif not dbt_test_result.get("success", False):
+            error_message = "Meta Ads extraction failed"
+        elif dbt_test_result and dbt_test_result.get("status") != "success":
             overall_status = "partial"
             error_task = "dbt_test"
-            error_message = "dbt tests failed"
-        elif volume_check_result.get("overall_status") == "FAIL":
+            error_message = dbt_test_result.get("message", "dbt tests failed")
+        elif volume_check_result and volume_check_result.get("overall_status") == "FAIL":
             overall_status = "partial"
             error_task = "volume_check"
             error_message = "Volume checks failed"
@@ -377,6 +377,9 @@ def marketing_data_platform():
         dbt_docs_result=docs,
         volume_check_result=volume_check,
     )
+    
+    # Add summary to the dependency chain
+    volume_check >> summary
 
 
 # DAG instantiation
