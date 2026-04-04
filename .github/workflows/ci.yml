@@ -73,9 +73,9 @@ jobs:
     - name: dbt compile
       run: |
         cd dbt/mdp
-        dbt compile --profiles-dir . --target dev || echo "Compilation check completed"
-    
+        dbt compile --profiles-dir . --target ci || echo "Compilation check completed"
+
     - name: dbt parse
       run: |
         cd dbt/mdp
-        dbt parse --profiles-dir . || echo "Parse check completed"
+        dbt parse --profiles-dir . --target ci || echo "Parse check completed"

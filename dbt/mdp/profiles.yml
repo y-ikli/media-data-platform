@@ -9,3 +9,12 @@ mdp:
       location: europe-west1
       threads: 4
       timeout_seconds: 300
+    ci:
+      type: bigquery
+      method: service-account
+      project: data-pipeline-platform-484814
+      dataset: mdp_staging
+      location: europe-west1
+      threads: 4
+      timeout_seconds: 300
+      keyfile: /dev/null
