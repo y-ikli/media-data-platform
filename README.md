@@ -5,7 +5,18 @@
 [![Airflow 2.9+](https://img.shields.io/badge/Airflow-2.9+-green.svg)](https://airflow.apache.org/)
 [![BigQuery](https://img.shields.io/badge/BigQuery-Cloud-red.svg)](https://cloud.google.com/bigquery)
 
+> **Projet en cours d'amélioration** — refactorisation active du code, connexion à la vraie API Meta Ads et alignement de la documentation. Certaines parties peuvent être incomplètes ou en transition.
+
 Pipeline de données marketing end-to-end centralisant les données publicitaires multi-sources (Google Ads, Meta Ads) vers des data marts analytiques dans Google BigQuery.
+
+---
+
+## État des sources de données
+
+| Source | Mode | Détail |
+|--------|------|--------|
+| **Meta Ads** | Réelle | Connectée à un vrai compte publicitaire via l'API Marketing Meta — campagnes historiques réelles ingérées dans BigQuery |
+| **Google Ads** | Simulation | Données générées (pas de compte Google Ads actif) — le connecteur est prêt pour une vraie connexion |
 
 ---
 

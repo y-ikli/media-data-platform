@@ -16,7 +16,7 @@ clean-targets:
 
 # Variables globales
 vars:
-  gcp_project: data-pipeline-platform-484814
+  gcp_project: media-data-platform
   raw_dataset: mdp_raw
   staging_dataset: mdp_staging
   marts_dataset: mdp_marts

@@ -4,7 +4,7 @@ mdp:
     dev:
       type: bigquery
       method: oauth
-      project: data-pipeline-platform-484814
+      project: media-data-platform
       dataset: mdp_staging
       location: europe-west1
       threads: 4
@@ -12,7 +12,7 @@ mdp:
     ci:
       type: bigquery
       method: service-account
-      project: data-pipeline-platform-484814
+      project: media-data-platform
       dataset: mdp_staging
       location: europe-west1
       threads: 4
