@@ -17,7 +17,7 @@ meta_ads:
 
 # BigQuery Configuration (if different from default)
 bigquery:
-  project_id: "data-pipeline-platform-484814"
+  project_id: "media-data-platform"
   dataset_raw: "mdp_raw"
   dataset_staging: "mdp_staging"
   dataset_intermediate: "mdp_intermediate"
