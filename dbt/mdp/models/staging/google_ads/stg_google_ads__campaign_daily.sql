@@ -13,10 +13,6 @@ select
   clicks,
   conversions,
   cost_usd,
-  cpc,
-  cpa,
-  ctr,
-  conversion_rate,
   ingested_at,
   extract_run_id,
   source

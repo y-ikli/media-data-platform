@@ -4,68 +4,61 @@ models:
   - name: int_campaign_daily_unified
     description: >
       Unified cross-platform campaign daily performance data.
-      This model combines standardized data from both Google Ads and Meta Ads
-      into a single table with consistent schema.
-    
+      Combines Google Ads and Meta Ads into a single schema with a platform column.
+      Spend is normalized to a single field (spend) regardless of source naming.
+
     columns:
       - name: report_date
         description: Date of the performance metrics
         tests:
           - not_null
-      
+
       - name: campaign_id
-        description: Unique campaign identifier (unique per platform)
+        description: Unique campaign identifier per platform
         tests:
           - not_null
-      
-      - name: account_id
-        description: Platform account identifier
-        tests:
-          - not_null
-      
+
       - name: campaign_name
         description: Campaign name
-      
+
       - name: platform
-        description: Advertising platform source
+        description: Advertising platform (google_ads or meta_ads)
         tests:
           - not_null
           - accepted_values:
               arguments:
                 values: ['google_ads', 'meta_ads']
-      
+
       - name: impressions
-        description: Total impressions across platform
+        description: Total impressions
         tests:
           - not_null
-      
+
       - name: clicks
-        description: Total clicks across platform
+        description: Total clicks
         tests:
           - not_null
-      
-      - name: spend
-        description: Total spend across platform
-        tests:
-          - not_null
-      
+
       - name: conversions
-        description: Total conversions across platform
+        description: Total conversions — null for Meta Ads (not provided by API)
+
+      - name: spend
+        description: Total spend in USD (normalized from spend_usd / cost_usd)
         tests:
           - not_null
-      
+
       - name: ingested_at
         description: Timestamp when data was ingested into raw layer
-      
+
       - name: extract_run_id
         description: Unique identifier for the extraction run
-      
-      - name: extracted_at
-        description: Timestamp when data was extracted from source
-      
+
+      - name: source
+        description: Source identifier from raw layer
+
       - name: unified_at
-        description: Timestamp when data was unified into this model
-    
+        description: Timestamp when this record was unified
+
     data_tests:
       - dbt_utils.unique_combination_of_columns:
           arguments:
