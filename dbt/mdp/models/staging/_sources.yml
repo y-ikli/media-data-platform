@@ -2,11 +2,11 @@ version: 2
 
 sources:
   - name: raw_google_ads
-    description: Raw Google Ads data ingested from API
+    description: Raw Google Ads data ingested from fake API
     database: "{{ var('gcp_project') }}"
     schema: "{{ var('raw_dataset') }}"
     tables:
-      - name: raw_google_ads__campaign_daily
+      - name: google_ads_campaign_daily
         description: Daily campaign-level performance metrics from Google Ads
         columns:
           - name: date
@@ -17,29 +17,29 @@ sources:
             description: Unique campaign identifier
             tests:
               - not_null
-          - name: account_id
-            description: Account identifier
           - name: campaign_name
             description: Campaign name
           - name: impressions
             description: Number of impressions
           - name: clicks
             description: Number of clicks
-          - name: spend
-            description: Amount spent
           - name: conversions
             description: Number of conversions
+          - name: cost_usd
+            description: Amount spent in USD
           - name: ingested_at
             description: Timestamp of ingestion
           - name: extract_run_id
-            description: Run ID from extraction process
+            description: Unique run identifier
+          - name: source
+            description: Source identifier
 
   - name: raw_meta_ads
-    description: Raw Meta Ads (Facebook/Instagram) data ingested from API
+    description: Raw Meta Ads (Facebook/Instagram) data ingested from real API
     database: "{{ var('gcp_project') }}"
     schema: "{{ var('raw_dataset') }}"
     tables:
-      - name: raw_meta_ads__campaign_daily
+      - name: meta_ads_campaign_daily
         description: Daily campaign-level performance metrics from Meta Ads
         columns:
           - name: date
@@ -50,19 +50,25 @@ sources:
             description: Unique campaign identifier
             tests:
               - not_null
-          - name: account_id
-            description: Account identifier
           - name: campaign_name
             description: Campaign name
           - name: impressions
             description: Number of impressions
           - name: clicks
             description: Number of clicks
-          - name: spend
-            description: Amount spent
           - name: conversions
             description: Number of conversions
+          - name: spend_usd
+            description: Amount spent in USD
+          - name: likes
+            description: Number of likes/reactions
+          - name: comments
+            description: Number of comments
+          - name: shares
+            description: Number of shares
           - name: ingested_at
             description: Timestamp of ingestion
           - name: extract_run_id
-            description: Run ID from extraction process
+            description: Unique run identifier
+          - name: source
+            description: Source identifier

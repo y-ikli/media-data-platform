@@ -36,7 +36,7 @@ class DataSourceConnector(ABC):
             project_id: GCP project ID for BigQuery (optional, reads from env or uses default)
         """
         self.source_name = source_name
-        self.project_id = project_id or os.getenv("GCP_PROJECT_ID", "data-pipeline-platform-484814")
+        self.project_id = project_id or os.getenv("GCP_PROJECT_ID", "media-data-platform")
         self.dataset_id = "mdp_raw"
         self.bq_client = None
 

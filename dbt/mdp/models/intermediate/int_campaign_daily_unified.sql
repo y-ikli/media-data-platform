@@ -8,12 +8,17 @@
 with google_ads as (
   select
     report_date,
-    campaign_id,
+    cast(campaign_id as string) as campaign_id,
     campaign_name,
     impressions,
     clicks,
     conversions,
     cost_usd as spend,
+    null as likes,
+    null as comments,
+    null as shares,
+    null as video_views,
+    null as page_engagement,
     ingested_at,
     extract_run_id,
     source,
@@ -24,49 +29,24 @@ with google_ads as (
 meta_ads as (
   select
     report_date,
-    campaign_id,
+    cast(campaign_id as string) as campaign_id,
     campaign_name,
     impressions,
     clicks,
-    conversions,
+    null as conversions,
     spend_usd as spend,
+    likes,
+    comments,
+    shares,
+    video_views,
+    page_engagement,
     ingested_at,
     extract_run_id,
     source,
     'meta_ads' as platform
   from {{ ref('stg_meta_ads__campaign_daily') }}
-),
-
-unified as (
-  select
-    report_date,
-    campaign_id,
-    campaign_name,
-    impressions,
-    clicks,
-    conversions,
-    spend,
-    ingested_at,
-    extract_run_id,
-    source,
-    platform,
-    current_timestamp() as unified_at
-  from google_ads
-  union all
-  select
-    report_date,
-    campaign_id,
-    campaign_name,
-    impressions,
-    clicks,
-    conversions,
-    spend,
-    ingested_at,
-    extract_run_id,
-    source,
-    platform,
-    current_timestamp() as unified_at
-  from meta_ads
 )
 
-select * from unified
+select * from google_ads
+union all
+select * from meta_ads
