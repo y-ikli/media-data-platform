@@ -1,5 +1,5 @@
 project:
-  project_id: data-pipeline-platform-484814
+  project_id: media-data-platform
   region: europe-west1
 
 datasets:

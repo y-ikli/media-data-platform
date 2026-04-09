@@ -3,6 +3,14 @@
 
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ENV_FILE="$SCRIPT_DIR/../.env"
+if [ -f "$ENV_FILE" ]; then
+  set -a
+  source "$ENV_FILE"
+  set +a
+fi
+
 echo ""
 echo "╔════════════════════════════════════════════════════════════════╗"
 echo "║          BIGQUERY VERIFICATION SCRIPT                          ║"
@@ -51,7 +59,7 @@ echo "2 Checking Datasets..."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
-bq ls --project_id=data-pipeline-platform-484814
+bq ls --project_id=media-data-platform
 
 echo ""
 
@@ -61,7 +69,7 @@ echo "3 Tables in mdp_raw (Ingestion Output)..."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
-bq ls data-pipeline-platform-484814:mdp_raw 2>/dev/null || echo "  mdp_raw dataset not yet created (run setup_bigquery.sh)"
+bq ls media-data-platform:mdp_raw 2>/dev/null || echo "  mdp_raw dataset not yet created (run setup_bigquery.sh)"
 
 echo ""
 
@@ -77,7 +85,7 @@ SELECT
   TIMESTAMP_MILLIS(CREATION_TIME) as created_at,
   ROW_COUNT,
   ROUND(SIZE_BYTES/1024/1024, 2) as size_mb
-FROM `data-pipeline-platform-484814.mdp_raw.__TABLES__`
+FROM `media-data-platform.mdp_raw.__TABLES__`
 ORDER BY CREATION_TIME DESC
 ' 2>/dev/null || echo "ℹ️  No tables in mdp_raw yet (trigger ingestion DAGs)"
 
@@ -89,7 +97,7 @@ echo "5 Tables in mdp_staging (After dbt)..."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
-bq ls data-pipeline-platform-484814:mdp_staging 2>/dev/null || echo " mdp_staging is empty (run: dbt run)"
+bq ls media-data-platform:mdp_staging 2>/dev/null || echo " mdp_staging is empty (run: dbt run)"
 
 echo ""
 
@@ -99,7 +107,7 @@ echo "6  Tables in mdp_marts (Analytics Layer)..."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
-bq ls data-pipeline-platform-484814:mdp_marts 2>/dev/null || echo "ℹ️  mdp_marts is empty (run: dbt run)"
+bq ls media-data-platform:mdp_marts 2>/dev/null || echo "ℹ️  mdp_marts is empty (run: dbt run)"
 
 echo ""
 

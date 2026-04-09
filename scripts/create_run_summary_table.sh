@@ -3,7 +3,7 @@
 
 set -e
 
-PROJECT_ID="${GCP_PROJECT_ID:-data-pipeline-platform-484814}"
+PROJECT_ID="${GCP_PROJECT_ID:-media-data-platform}"
 DATASET="mdp_marts"
 TABLE="run_summary"
 VIEW="vw_recent_runs"

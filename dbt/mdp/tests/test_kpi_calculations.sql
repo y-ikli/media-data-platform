@@ -1,28 +1,17 @@
 -- Test: KPI calculations are mathematically correct
 -- Tests that CTR = clicks / impressions, CPC = spend / clicks, etc.
--- This test ensures no data corruption in calculated fields.
+-- Returns rows where a KPI deviates from expected formula — test fails if any row returned.
 
 SELECT
   report_date,
   campaign_id,
-  platform,
-  -- CTR should be clicks / impressions (or NULL if impressions = 0)
-  CASE 
-    WHEN impressions = 0 THEN ctr IS NULL
-    ELSE ABS(SAFE_DIVIDE(clicks, impressions) - ctr) > 0.0001
-  END AS ctr_calc_error,
-  
-  -- CPC should be spend / clicks (or NULL if clicks = 0)
-  CASE 
-    WHEN clicks = 0 THEN cpc IS NULL
-    ELSE ABS(SAFE_DIVIDE(spend, clicks) - cpc) > 0.01
-  END AS cpc_calc_error,
-  
-  -- CPA should be spend / conversions (or NULL if conversions = 0)
-  CASE 
-    WHEN conversions = 0 THEN cpa IS NULL
-    ELSE ABS(SAFE_DIVIDE(spend, conversions) - cpa) > 0.01
-  END AS cpa_calc_error
+  platform
 FROM {{ ref('mart_campaign_daily') }}
-WHERE ctr_calc_error OR cpc_calc_error OR cpa_calc_error
+WHERE
+  -- CTR error: should be clicks / impressions when impressions > 0
+  (impressions > 0 AND ctr IS NOT NULL AND ABS(SAFE_DIVIDE(clicks, impressions) - ctr) > 0.0001)
+  -- CPC error: should be spend / clicks when clicks > 0
+  OR (clicks > 0 AND cpc IS NOT NULL AND ABS(SAFE_DIVIDE(spend, clicks) - cpc) > 0.01)
+  -- CPA error: skip Meta rows (conversions null), only check Google
+  OR (conversions IS NOT NULL AND conversions > 0 AND cpa IS NOT NULL AND ABS(SAFE_DIVIDE(spend, conversions) - cpa) > 0.01)
 QUALIFY ROW_NUMBER() OVER (ORDER BY report_date DESC) <= 1000

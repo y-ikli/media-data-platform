@@ -3,6 +3,14 @@
 
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ENV_FILE="$SCRIPT_DIR/../.env"
+if [ -f "$ENV_FILE" ]; then
+  set -a
+  source "$ENV_FILE"
+  set +a
+fi
+
 echo "╔════════════════════════════════════════════════════════════════════════╗"
 echo "║                  DIAGNOSTIC BIGQUERY VIDE                             ║"
 echo "╚════════════════════════════════════════════════════════════════════════╝"
@@ -214,7 +222,7 @@ echo "    - Attendre: DAG complète (✓ status)"
 echo ""
 echo "4  VÉRIFIER DONNÉES"
 echo "    $ bash scripts/verify_bigquery.sh"
-echo "    $ bq ls data-pipeline-platform-484814:mdp_raw"
+echo "    $ bq ls media-data-platform:mdp_raw"
 echo ""
 echo "5  TRANSFORMATIONS (optionnel)"
 echo "    $ cd dbt/mdp && dbt run"

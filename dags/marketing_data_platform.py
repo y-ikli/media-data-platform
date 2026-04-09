@@ -239,7 +239,7 @@ def marketing_data_platform():
         try:
             # Get GCP project ID from environment
             import os
-            project_id = os.getenv("GCP_PROJECT_ID", "data-pipeline-platform-484814")
+            project_id = os.getenv("GCP_PROJECT_ID", "media-data-platform")
             
             logging.info("Starting volume control checks for project: %s", project_id)
             
@@ -334,7 +334,7 @@ def marketing_data_platform():
         
         # Log to BigQuery
         try:
-            project_id = os.getenv("GCP_PROJECT_ID", "data-pipeline-platform-484814")
+            project_id = os.getenv("GCP_PROJECT_ID", "media-data-platform")
             log_result = log_run_summary(
                 project_id=project_id,
                 run_id=run_id,
