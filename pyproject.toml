@@ -1,0 +1,23 @@
+[project]
+name = "media-data-platform"
+version = "0.1.0"
+requires-python = ">=3.13"
+dependencies = [
+    "google-cloud-bigquery>=3.14.0",
+    "google-cloud-storage>=2.11.0",
+    "google-ads>=22.1.0",
+    "facebook-business>=18.0.2",
+    "dbt-core>=1.7.0",
+    "dbt-bigquery>=1.7.0",
+    "python-dotenv>=1.0.0",
+    "pendulum>=2.1.2",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+]
+
+[tool.uv]
+package = false

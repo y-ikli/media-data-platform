@@ -64,7 +64,8 @@ class TestMetaAdsAPI:
         result = get_meta_ads("2024-01-01", "2024-01-01")
         assert len(result) > 0
         
-        meta_fields = ["likes", "comments", "shares", "engagement_rate"]
+        # engagement_rate is a derived KPI — computed in dbt, not in the fake API
+        meta_fields = ["likes", "comments", "shares"]
         
         for record in result:
             for field in meta_fields:

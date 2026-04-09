@@ -3,16 +3,17 @@ mdp:
   outputs:
     dev:
       type: bigquery
-      method: oauth
-      project: data-pipeline-platform-484814
+      method: service-account
+      project: media-data-platform
       dataset: mdp_staging
       location: europe-west1
       threads: 4
       timeout_seconds: 300
+      keyfile: "{{ env_var('GOOGLE_APPLICATION_CREDENTIALS') }}"
     ci:
       type: bigquery
       method: service-account
-      project: data-pipeline-platform-484814
+      project: media-data-platform
       dataset: mdp_staging
       location: europe-west1
       threads: 4

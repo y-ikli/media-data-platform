@@ -155,7 +155,7 @@ bash scripts/setup_bigquery.sh
 **Output attendu:**
 ```
 ✓ Successfully connected to BigQuery
-✓ Project ID: data-pipeline-platform-484814
+✓ Project ID: media-data-platform
 ✓ Dataset 'mdp_raw' exists
 ✓ Dataset 'mdp_staging' exists
 ✓ Dataset 'mdp_intermediate' exists
@@ -189,12 +189,12 @@ docker compose up -d
 
 ```bash
 # Lister les tables
-bq ls data-pipeline-platform-484814:mdp_raw
+bq ls media-data-platform:mdp_raw
 
 # Query les données
 bq query --use_legacy_sql=false '
 SELECT COUNT(*) as record_count, source
-FROM `data-pipeline-platform-484814.mdp_raw.google_ads_campaign_daily`
+FROM `media-data-platform.mdp_raw.google_ads_campaign_daily`
 GROUP BY source
 '
 ```

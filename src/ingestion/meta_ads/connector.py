@@ -10,13 +10,13 @@ Real API extraction via facebook-business SDK is not yet implemented (see _extra
 
 import logging
 import os
-from typing import Optional
+
 from ingestion.base import DataSourceConnector
 from fake_apis.meta_ads_api import get_campaign_daily
 
-# Real API imports — only available when facebook-business is installed
+# Check if facebook-business SDK is installed
 try:
-    from facebook_business.api import FacebookAdsApi
+    import facebook_business  # noqa: F401  # pylint: disable=unused-import
     META_ADS_AVAILABLE = True
 except ImportError:
     META_ADS_AVAILABLE = False
@@ -45,9 +45,11 @@ class MetaAdsConnector(DataSourceConnector):  # pylint: disable=too-few-public-m
             logger.info("Using fake Meta Ads API")
             self._api = None
 
-    def _init_real_api(self) -> Optional[FacebookAdsApi]:
+    def _init_real_api(self):
         """Initialize the real Meta Ads API client from environment variables."""
         try:
+            from facebook_business.api import FacebookAdsApi  # pylint: disable=import-outside-toplevel,import-error
+
             app_id = os.getenv("META_ADS_APP_ID")
             app_secret = os.getenv("META_ADS_APP_SECRET")
             access_token = os.getenv("META_ADS_ACCESS_TOKEN")
@@ -84,13 +86,57 @@ class MetaAdsConnector(DataSourceConnector):  # pylint: disable=too-few-public-m
 
     def _extract_real_api(self, start_date: str, end_date: str) -> list[dict]:
         """
-        Extract data from real Meta Ads API.
+        Extract daily campaign insights from real Meta Ads API.
 
-        TODO: implement real API calls using facebook-business SDK
+        Fetches impressions, clicks, spend and engagement actions per campaign per day.
+        Actions (likes, comments, video views...) are flattened into individual fields.
+
+        Args:
+            start_date: Start date in YYYY-MM-DD format
+            end_date: End date in YYYY-MM-DD format (inclusive)
+
+        Returns:
+            List of dictionaries containing campaign daily performance data
         """
-        logger.info("Extracting Meta Ads data from real API (NOT IMPLEMENTED YET)")
-        logger.info("Would extract from %s to %s", start_date, end_date)
-        return []
+        # pylint: disable=import-error
+        from facebook_business.adobjects.adaccount import AdAccount  # pylint: disable=import-outside-toplevel
+
+        account_id = os.getenv("META_ADS_ACCOUNT_ID")
+        account = AdAccount(account_id)
+
+        logger.info("Extracting Meta Ads data from real API (%s to %s)", start_date, end_date)
+
+        insights = account.get_insights(
+            fields=["campaign_id", "campaign_name", "impressions", "clicks", "spend", "actions"],
+            params={
+                "time_range": {"since": start_date, "until": end_date},
+                "time_increment": 1,   # one row per day
+                "level": "campaign",
+            }
+        )
+
+        records = []
+        for row in insights:
+            # Flatten actions list into a dict keyed by action_type
+            actions = {a["action_type"]: int(a["value"]) for a in row.get("actions", [])}
+
+            records.append({
+                "date": row["date_start"],
+                "campaign_id": row["campaign_id"],
+                "campaign_name": row["campaign_name"],
+                "impressions": int(row.get("impressions", 0)),
+                "clicks": int(row.get("clicks", 0)),
+                "spend_usd": float(row.get("spend", 0.0)),
+                # Engagement metrics extracted from actions
+                "likes": actions.get("post_reaction", 0),
+                "comments": actions.get("comment", 0),
+                "shares": actions.get("post", 0),
+                "video_views": actions.get("video_view", 0),
+                "page_engagement": actions.get("page_engagement", 0),
+            })
+
+        logger.info("Extracted %d records from real Meta Ads API", len(records))
+        return records
 
     def _extract_fake_api(self, start_date: str, end_date: str) -> list[dict]:
         """
