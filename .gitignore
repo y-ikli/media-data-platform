@@ -24,6 +24,11 @@ Thumbs.db
 .vscode/
 .idea/
 
+# dbt generated files
+dbt/mdp/package-lock.yml
+dbt/mdp/target/
+dbt/mdp/dbt_packages/
+
 # Documentation
 docs/tmp_*
 tmp_*
