@@ -18,7 +18,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.11'
+        python-version: '3.13'
         cache: 'pip'
 
     - name: Install dependencies
@@ -29,7 +29,7 @@ jobs:
 
     - name: Lint Python code
       run: |
-        pylint src/ --disable=C0114,C0115,C0116 --max-line-length=120 || true
+        pylint src/ --disable=C0114,C0115,C0116 --max-line-length=120
 
     - name: Set PYTHONPATH
       run: echo "PYTHONPATH=$(pwd):$PYTHONPATH" >> $GITHUB_ENV
@@ -50,7 +50,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.11'
+        python-version: '3.13'
         cache: 'pip'
 
     - name: Install dbt

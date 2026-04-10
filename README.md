@@ -67,7 +67,7 @@ Tous les connecteurs héritent d'une classe abstraite `DataSourceConnector` :
 DataSourceConnector (abstract)
 ├── extract()            ← implémenté par chaque source
 ├── load_raw()           ← enrichissement metadata (ingested_at, extract_run_id)
-└── write_to_bigquery()  ← écriture par partition, WRITE_TRUNCATE (idempotent)
+└── write_to_bigquery()  ← écriture en WRITE_APPEND, déduplication par partition possible
 ```
 
 Chaque run génère un `extract_run_id` (UUID) pour tracer quelle exécution a produit quelle ligne.
