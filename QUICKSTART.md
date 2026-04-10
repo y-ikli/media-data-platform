@@ -31,9 +31,20 @@ Crée les 4 datasets : `mdp_raw`, `mdp_staging`, `mdp_intermediate`, `mdp_marts`
 
 ## 3. Ingestion des données
 
+Option rapide — tout en une commande :
+
+```bash
+bash scripts/run_pipeline.sh
+```
+
+Ou étape par étape :
+
 ```bash
 # Meta Ads — vraie API (nécessite META_ADS_* dans .env)
-python scripts/ingest_meta_ads.py --start 2023-04-01 --end 2025-09-15
+# Splitté par année pour éviter les timeouts API Meta
+python scripts/ingest_meta_ads.py --start 2023-04-01 --end 2023-12-31
+python scripts/ingest_meta_ads.py --start 2024-01-01 --end 2024-12-31
+python scripts/ingest_meta_ads.py --start 2025-01-01 --end 2025-09-15
 
 # Google Ads — simulation (mêmes dates pour comparaison cohérente)
 python -c "
@@ -58,7 +69,7 @@ Résultat attendu : `PASS=4` (run) et `PASS=36` (test).
 ## 5. Vérifier les données
 
 ```bash
-python scripts/test_bigquery.py --project media-data-platform --datasets
+python scripts/debug/test_bigquery.py --project media-data-platform --datasets
 ```
 
 ## Troubleshooting
