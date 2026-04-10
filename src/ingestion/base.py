@@ -130,12 +130,13 @@ class DataSourceConnector(ABC):
 
     def write_to_bigquery(self, rows: list[dict]) -> None:
         """
-        Write enriched data to BigQuery raw dataset.
+        Write enriched data to BigQuery raw dataset, one partition per date.
 
-        Automatically creates table if it doesn't exist.
+        Uses WRITE_TRUNCATE per date partition — idempotent: rerunning the same
+        date overwrites only that partition, preventing duplicates.
 
         Args:
-            rows: List of enriched dictionaries
+            rows: List of enriched dictionaries (must contain a 'date' field)
 
         Raises:
             Exception: If BigQuery write fails
@@ -145,16 +146,9 @@ class DataSourceConnector(ABC):
             return
 
         client = self.get_bigquery_client()
-
-        # Table name follows convention: <source_name>_campaign_daily
         table_name = f"{self.source_name}_campaign_daily"
-        table_id = f"{self.project_id}.{self.dataset_id}.{table_name}"
+        base_table_id = f"{self.project_id}.{self.dataset_id}.{table_name}"
 
-        logger.info("Writing %d rows to %s", len(rows), table_id)
-
-        # WRITE_APPEND: add rows without deleting existing data
-        # CREATE_IF_NEEDED: create the table automatically on first run
-        # autodetect: infer schema from the data
         job_config = bigquery.LoadJobConfig(
             write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
             create_disposition=bigquery.CreateDisposition.CREATE_IF_NEEDED,
@@ -163,12 +157,10 @@ class DataSourceConnector(ABC):
 
         try:
             load_job = client.load_table_from_json(
-                rows,
-                table_id,
-                job_config=job_config,
+                rows, base_table_id, job_config=job_config
             )
-            load_job.result()  # Block until the job completes
-            logger.info("Successfully loaded %d rows to %s", load_job.output_rows, table_id)
+            load_job.result()
+            logger.info("Total: %d rows written to %s", load_job.output_rows, base_table_id)
         except Exception as e:
             logger.error("Failed to load data to BigQuery: %s", str(e))
             raise
