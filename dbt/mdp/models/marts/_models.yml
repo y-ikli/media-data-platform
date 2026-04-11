@@ -26,8 +26,7 @@ models:
         tests:
           - not_null
           - accepted_values:
-              arguments:
-                values: ['google_ads', 'meta_ads']
+              values: ['google_ads', 'meta_ads']
 
       - name: impressions
         description: Total impressions
@@ -78,8 +77,7 @@ models:
 
     data_tests:
       - dbt_utils.unique_combination_of_columns:
-          arguments:
-            combination_of_columns:
-              - report_date
-              - campaign_id
-              - platform
+          combination_of_columns:
+            - report_date
+            - campaign_id
+            - platform
