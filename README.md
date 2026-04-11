@@ -67,7 +67,7 @@ Tous les connecteurs héritent d'une classe abstraite `DataSourceConnector` :
 DataSourceConnector (abstract)
 ├── extract()            ← implémenté par chaque source
 ├── load_raw()           ← enrichissement metadata (ingested_at, extract_run_id)
-└── write_to_bigquery()  ← écriture en WRITE_APPEND, déduplication par partition possible
+└── write_to_bigquery()  ← écriture en WRITE_TRUNCATE par partition (idempotent)
 ```
 
 Chaque run génère un `extract_run_id` (UUID) pour tracer quelle exécution a produit quelle ligne.
@@ -126,9 +126,12 @@ Grain : **1 ligne = 1 campagne × 1 date × 1 plateforme**
 │       ├── intermediate/    # int_campaign_daily_unified (UNION ALL)
 │       └── marts/           # mart_campaign_daily (table finale + KPI)
 ├── scripts/
+│   ├── run_pipeline.sh      # Pipeline complet : ingestion + dbt run + dbt test
+│   ├── run_dbt.sh           # Helper dbt (run, test, docs, deps…)
 │   ├── ingest_meta_ads.py   # Ingestion Meta Ads standalone
 │   ├── setup_bigquery.sh    # Initialisation datasets BigQuery
-│   └── deduplicate_raw.py   # Déduplication tables raw
+│   ├── deduplicate_raw.py   # Déduplication tables raw
+│   └── debug/               # Scripts de diagnostic BigQuery
 ├── tests/unit/              # Tests pytest (structure dbt, fake APIs)
 ├── .github/workflows/       # CI GitHub Actions
 └── docs/                    # Architecture, modèle de données, référence KPI
@@ -160,31 +163,26 @@ cp .env.example .env
 # Remplir .env avec vos valeurs
 ```
 
-### Ingestion
+### Ingestion & transformations
+
+Option rapide — tout en une commande :
 
 ```bash
-source .venv/bin/activate
-set -a && source .env && set +a
-
-# Meta Ads (vraie API)
-python scripts/ingest_meta_ads.py --start 2023-04-01 --end 2025-09-15
-
-# Google Ads (simulation)
-python -c "
-import sys; sys.path.insert(0, 'src')
-from dotenv import load_dotenv; load_dotenv()
-from ingestion.google_ads.connector import run
-run('2023-04-23', '2025-08-25')
-"
+bash scripts/run_pipeline.sh
 ```
 
-### Transformations dbt
+Ou étape par étape — voir [QUICKSTART.md](QUICKSTART.md) pour le détail.
+
+### Transformations dbt seules
 
 ```bash
 cd dbt/mdp
+dbt deps --profiles-dir .
 dbt run --profiles-dir .
 dbt test --profiles-dir .
 ```
+
+Ou via le helper : `bash scripts/run_dbt.sh run`
 
 ---
 
