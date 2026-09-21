@@ -1,21 +1,26 @@
+# Cibles :
+#   dev    BigQuery, jeu de données personnel (mdp_dev_*), authentification par Application Default Credentials
+#   prod   BigQuery, jeux de données mdp_* (déploiement)
+#   duckdb tests locaux et CI sans identifiants (voir scripts/load_duckdb_fixtures.py)
+# Aucune clé de compte de service n'est lue ici : `gcloud auth application-default login` en local,
+# Workload Identity Federation en CI/production.
 mdp:
-  target: dev
+  target: "{{ env_var('DBT_TARGET', 'dev') }}"
   outputs:
-    dev:
+    dev: &bigquery
       type: bigquery
-      method: service-account
-      project: media-data-platform
-      dataset: mdp_staging
-      location: europe-west1
+      method: oauth
+      project: "{{ env_var('GCP_PROJECT_ID', 'unset') }}"
+      dataset: "{{ env_var('DBT_DEV_DATASET', 'mdp_dev') }}"
+      location: "{{ env_var('BQ_LOCATION', 'europe-west1') }}"
       threads: 4
-      timeout_seconds: 300
-      keyfile: "{{ env_var('GOOGLE_APPLICATION_CREDENTIALS') }}"
-    ci:
-      type: bigquery
-      method: service-account
-      project: media-data-platform
-      dataset: mdp_staging
-      location: europe-west1
-      threads: 4
-      timeout_seconds: 300
-      keyfile: /dev/null
+      job_execution_timeout_seconds: 300
+      job_retries: 2
+    prod:
+      <<: *bigquery
+      dataset: mdp
+    duckdb:
+      type: duckdb
+      path: "{{ env_var('DBT_DUCKDB_PATH', 'target/ci.duckdb') }}"
+      schema: mdp
+      threads: 1

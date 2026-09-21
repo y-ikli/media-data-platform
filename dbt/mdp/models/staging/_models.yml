@@ -1,0 +1,34 @@
+version: 2
+
+models:
+  - name: stg_meta_ads__campaign_daily
+    description: >
+      Meta Ads : typage, noms normalisés, **déduplication** (dernière ingestion par jour et campagne).
+      Aucun KPI ici : ils sont calculés une seule fois dans la couche marts.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments: {combination_of_columns: [report_date, campaign_id]}
+    columns:
+      - name: report_date
+        data_tests: [not_null]
+      - name: campaign_id
+        data_tests: [not_null]
+      - name: spend_usd
+        description: Dépense en USD.
+        data_tests: [not_null]
+      - name: conversions
+        description: NULL si non suivi (≠ 0).
+
+  - name: stg_google_ads__campaign_daily
+    description: "Google Ads (simulé) : typage, noms normalisés, déduplication (dernière ingestion par jour et campagne)."
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments: {combination_of_columns: [report_date, campaign_id]}
+    columns:
+      - name: report_date
+        data_tests: [not_null]
+      - name: campaign_id
+        data_tests: [not_null]
+      - name: cost_usd
+        description: Dépense en USD.
+        data_tests: [not_null]
