@@ -35,3 +35,10 @@ dbt/mdp/logs/
 # Assistants IA
 .claude/
 CLAUDE.md
+
+# Terraform
+infra/.terraform/
+*.tfstate
+*.tfstate.*
+infra/envs/*.tfvars
+!infra/envs/*.tfvars.example

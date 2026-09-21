@@ -2,6 +2,20 @@
 
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
+## [0.3.0] — Infrastructure GCP en code
+
+### Ajouté
+- `infra/` (Terraform) : jeux de données BigQuery, cinq comptes de service à moindre privilège, Secret Manager (conteneurs seulement), Artifact Registry, jobs Cloud Run (ingestion Meta, ingestion Google, dbt), workflow Workflows, Cloud Scheduler, Workload Identity Federation restreinte au dépôt et à la branche, alertes Cloud Monitoring, budget optionnel. ADR-0004 et ADR-0005.
+- `Dockerfile` (image unique des jobs, utilisateur non-root) ; workflows GitHub *Infra* (fmt, validate, tflint, trivy) et *Deploy* (WIF).
+- `mdp-ingest --lookback-days N` : fenêtre glissante pour les exécutions planifiées.
+- `tests/unit/test_infra_contract.py` : arguments des jobs, variables d'environnement, absence de secret dans Terraform.
+
+### Corrigé
+- Le chargeur créait le jeu de données raw sans jamais le vérifier ; il le lit d'abord et ne le crée que s'il manque (le compte de production n'a pas le droit de création).
+
+### Non fait
+- L'infrastructure n'a pas été appliquée sur un projet GCP réel.
+
 ## [0.2.0] — Fiabilisation du pipeline
 
 ### Corrigé

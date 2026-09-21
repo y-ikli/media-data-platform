@@ -59,6 +59,23 @@ Union des plateformes dans un schéma commun. Les colonnes absentes d'une platef
 
 L'authentification BigQuery utilise les *Application Default Credentials* : aucune clé JSON n'est lue par le projet.
 
+## Déploiement (Terraform, dossier `infra/`)
+
+```mermaid
+flowchart LR
+  SCH[Cloud Scheduler<br/>06:00 Paris] --> WF[Workflows mdp-daily]
+  WF --> J1[Cloud Run Job<br/>ingest-meta]
+  WF --> J2[Cloud Run Job<br/>ingest-google]
+  J1 & J2 --> J3[Cloud Run Job<br/>dbt build]
+  J1 & J2 --> RAW[(mdp_raw)]
+  J3 --> MARTS[(mdp_marts)]
+  SM[Secret Manager] -.-> J1
+  GH[GitHub Actions] -- OIDC / WIF --> AR[Artifact Registry] --> J1 & J2 & J3
+  WF -. échec .-> MON[Cloud Monitoring<br/>alerte e-mail]
+```
+
+Une image, trois jobs, un compte de service par rôle ; dbt ne tourne que si les deux ingestions ont réussi. Détails, droits et procédure : [infra/README.md](../infra/README.md), [ADR-0004](adr/0004-cloud-run-jobs-workflows.md), [ADR-0005](adr/0005-workload-identity-federation.md).
+
 ## Ce qui n'existe pas encore
 
-Orchestration planifiée, infrastructure décrite en code (Terraform), extraction Google Ads réelle, alertes. Voir la [feuille de route](../README.md#feuille-de-route).
+Extraction Google Ads réelle, application de l'infrastructure sur un projet GCP réel (le code est validé mais pas déployé), dbt exécuté contre BigQuery en CI.

@@ -53,6 +53,10 @@ Détail, schémas et principes : [docs/architecture.md](docs/architecture.md).
 | Environnements | Cibles `duckdb`, `dev` (`mdp_dev_*`), `prod` (`mdp_*`) ; aucune clé JSON lue par le projet | `profiles.yml`, `generate_schema_name` |
 | CI qui peut échouer | Tests dbt réels sur DuckDB, sqlfluff, tests Python (couverture ≥ 85 %), `dbt parse` BigQuery | [ADR-0002](docs/adr/0002-dbt-duckdb-ci.md), `.github/workflows/ci.yml` |
 
+## Déploiement sur GCP
+
+Terraform (`infra/`) décrit : jeux de données, comptes de service à moindre privilège, Secret Manager, Artifact Registry, trois jobs Cloud Run, un workflow (ingestion Meta + Google en parallèle, puis dbt), Cloud Scheduler, authentification GitHub → GCP sans clé (Workload Identity Federation) et alertes. Procédure, droits et points à vérifier : [infra/README.md](infra/README.md).
+
 ## Structure
 
 ```
@@ -60,6 +64,7 @@ src/mdp/
   ingestion/   base, schemas, validation, loader (BigQuery), connecteurs, CLI `mdp-ingest`
   fake_apis/   générateur déterministe de données simulées
   dev/         zone raw DuckDB pour dbt sans cloud
+infra/         Terraform : BigQuery, IAM, Cloud Run Jobs, Workflows, Scheduler, WIF, alertes
 dbt/mdp/       models (staging, intermediate, marts), macros, tests unitaires, profiles.yml
 tests/         unit (ingestion) et dbt (exécution réelle sur DuckDB)
 docs/          architecture, modèle de données, KPI, exploitation, ADR
@@ -81,13 +86,13 @@ Exploitation (rejouer une période, lire un échec) : [docs/runbook.md](docs/run
 
 - Le chargement et les modèles sont testés hors BigQuery (client simulé, DuckDB). Le SQL rendu pour BigQuery n'est pas exécuté en CI (`dbt parse` seulement).
 - Aucun tableau de bord n'est versionné : les marts sont conçus pour Looker Studio, sans capture dans ce dépôt.
-- Pas d'orchestration planifiée : l'ingestion se lance à la main ou depuis un planificateur externe.
+- L'orchestration (Cloud Run Jobs, Workflows, Scheduler), les droits, les secrets et les alertes sont décrits en Terraform (`infra/`), validés (`fmt`, `validate`, tflint, trivy) mais **jamais appliqués** sur un vrai projet GCP.
 - Google Ads simulé ; devises non converties (tout en USD).
 
 ## Feuille de route
 
-1. **Cloud-natif** : Terraform (jeux de données, comptes de service à moindre privilège, Secret Manager), ingestion en Cloud Run Job déclenché par Cloud Scheduler, authentification GitHub → GCP par Workload Identity Federation, exécution de dbt sur un projet BigQuery de test en CI.
-2. **Observabilité** : fraîcheur et volumétrie alertées (Cloud Monitoring), documentation dbt publiée.
+1. **Appliquer l'infrastructure** sur un projet GCP de test : le code Terraform est écrit et validé, pas encore déployé ([infra/README.md](infra/README.md)). Puis exécuter dbt contre BigQuery en CI.
+2. **Observabilité** : fraîcheur et volumétrie alertées, documentation dbt publiée, tableau de bord Looker Studio versionné (capture).
 3. **Optionnel, streaming** : événements de conversion (Pub/Sub → Dataflow → BigQuery) pour un vrai revenu par campagne.
 
 ## Licence

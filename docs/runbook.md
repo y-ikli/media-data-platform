@@ -12,6 +12,18 @@ Variables : `GCP_PROJECT_ID` (obligatoire hors dry-run), `BQ_LOCATION` (défaut 
 
 Chaque fenêtre journalise une ligne JSON : source, mode, table, bornes, lignes, `extract_run_id`, durée.
 
+## Exécution planifiée
+
+Cloud Scheduler déclenche chaque jour le workflow `mdp-daily` : ingestion Meta et Google en parallèle (fenêtre glissante `[J-3, J-1]`), puis `dbt build`. Une exécution manquée est rattrapée par la suivante (idempotence).
+
+```bash
+gcloud workflows run mdp-daily --location europe-west1        # lancer à la main
+gcloud workflows executions list mdp-daily --location europe-west1 --limit 5
+gcloud run jobs executions list --job mdp-dbt --region europe-west1 --limit 3
+```
+
+Un échec envoie un e-mail (Cloud Monitoring). Procédure : ouvrir l'exécution en échec, lire les journaux du job concerné, corriger, relancer (rejouer est sans danger). Mise en place : [infra/README.md](../infra/README.md).
+
 ## Rejouer ou corriger une période
 
 L'ingestion est idempotente : relancer la même commande remplace la fenêtre. Après une correction en zone raw, recalculer les marts :

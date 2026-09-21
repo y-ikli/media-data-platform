@@ -1,0 +1,42 @@
+name: Deploy
+
+# Construit l'image, la pousse et met à jour les jobs Cloud Run.
+# Authentification par Workload Identity Federation : aucun secret GCP dans GitHub.
+# Variables du dépôt requises : GCP_PROJECT_ID, GCP_REGION, GCP_WIF_PROVIDER, GCP_DEPLOYER_SA (voir infra/README.md).
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["src/**", "dbt/**", "Dockerfile", "pyproject.toml", "uv.lock"]
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: vars.GCP_WIF_PROVIDER != ''
+    env:
+      IMAGE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/mdp/mdp:${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SA }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - run: gcloud auth configure-docker "${{ vars.GCP_REGION }}-docker.pkg.dev" --quiet
+      - name: Build et push
+        run: |
+          docker build -t "$IMAGE" .
+          docker push "$IMAGE"
+      - name: Mise à jour des jobs
+        run: |
+          for job in mdp-ingest-meta mdp-ingest-google mdp-dbt; do
+            gcloud run jobs update "$job" --image "$IMAGE" --region "${{ vars.GCP_REGION }}" --project "${{ vars.GCP_PROJECT_ID }}"
+          done

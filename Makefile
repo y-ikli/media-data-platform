@@ -2,7 +2,7 @@
 DBT = DBT_PROFILES_DIR=dbt/mdp uv run dbt
 DBT_DIR = --project-dir dbt/mdp
 
-.PHONY: help install lint test dbt-duckdb ci ingest-demo dbt-build docs
+.PHONY: help install lint test dbt-duckdb ci ingest-demo dbt-build docs infra-check image
 
 help: ## Liste les commandes
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-14s %s\n", $$1, $$2}'
@@ -35,3 +35,13 @@ dbt-build: ## dbt build sur BigQuery (cible dev ; GCP_PROJECT_ID requis)
 docs: ## Documentation dbt (catalogue et lignée) sur DuckDB
 	DBT_TARGET=duckdb $(DBT) docs generate $(DBT_DIR)
 	DBT_TARGET=duckdb $(DBT) docs serve $(DBT_DIR)
+
+infra-check: ## Terraform : fmt, validate (sans identifiants, via Docker)
+	docker run --rm -v "$$PWD/infra:/w" -w /w hashicorp/terraform:1.9 fmt -check -recursive
+	docker run --rm -v "$$PWD/infra:/w" -w /w hashicorp/terraform:1.9 init -backend=false -input=false >/dev/null
+	docker run --rm -v "$$PWD/infra:/w" -w /w hashicorp/terraform:1.9 validate
+	docker run --rm -v "$$PWD/infra:/w" alpine rm -rf /w/.terraform
+
+image: ## Construit l'image des jobs et vérifie qu'elle démarre
+	docker build -t mdp:local .
+	docker run --rm mdp:local mdp-ingest --source meta_ads --lookback-days 2 --dry-run
