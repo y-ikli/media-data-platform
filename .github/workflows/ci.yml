@@ -1,73 +1,61 @@
-name: CI - Marketing Data Platform
+name: CI
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main]
   pull_request:
-    branches: [ main, develop ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  lint-and-test:
-    name: Lint and Test
+  python:
+    name: Lint et tests Python
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --group dev
+      - run: uv run ruff check .
+      - run: uv run ruff format --check src tests
+      - name: Tests unitaires (couverture minimale 85 %)
+        run: uv run pytest tests/unit --cov
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.13'
-        cache: 'pip'
-
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install google-cloud-bigquery google-ads facebook-business python-dotenv pendulum
-        pip install pylint pytest pytest-cov
-
-    - name: Lint Python code
-      run: |
-        pylint src/ --disable=C0114,C0115,C0116 --max-line-length=120
-
-    - name: Set PYTHONPATH
-      run: echo "PYTHONPATH=$(pwd):$PYTHONPATH" >> $GITHUB_ENV
-
-    - name: Run unit tests
-      env:
-        PYTHONPATH: ${{ env.PYTHONPATH }}
-      run: pytest tests/unit/ -v --cov=src --cov-report=term-missing
-
-  dbt-checks:
-    name: dbt Validation
+  dbt:
+    name: dbt sur DuckDB (modèles, tests de données, tests unitaires, incrémental)
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --group dev
+      - name: dbt deps
+        run: uv run dbt deps --project-dir dbt/mdp --profiles-dir dbt/mdp
+        env:
+          DBT_TARGET: duckdb
+      - name: SQL lint
+        run: |
+          uv run python -m mdp.dev.duckdb_fixtures --path dbt/mdp/target/ci.duckdb
+          DBT_TARGET=duckdb DBT_DUCKDB_PATH=$PWD/dbt/mdp/target/ci.duckdb uv run sqlfluff lint dbt/mdp/models
+      - name: Tests dbt (échec bloquant)
+        run: uv run pytest tests/dbt -m dbt
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.13'
-        cache: 'pip'
-
-    - name: Install dbt
-      run: |
-        pip install dbt-bigquery==1.11.1
-    
-    - name: dbt deps
-      run: |
-        cd dbt/mdp
-        dbt deps --profiles-dir .
-
-    - name: dbt compile
-      run: |
-        cd dbt/mdp
-        dbt compile --profiles-dir . --target ci || echo "Compilation check completed"
-
-    - name: dbt parse
-      run: |
-        cd dbt/mdp
-        dbt parse --profiles-dir . --target ci || echo "Parse check completed"
+  bigquery-parse:
+    name: dbt parse (cible BigQuery, sans identifiants)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --group dbt
+      - run: uv run dbt deps --project-dir dbt/mdp --profiles-dir dbt/mdp
+        env: { DBT_TARGET: dev, GCP_PROJECT_ID: ci-project }
+      - name: Le projet se charge avec l'adaptateur BigQuery
+        run: uv run dbt parse --project-dir dbt/mdp --profiles-dir dbt/mdp
+        env: { DBT_TARGET: dev, GCP_PROJECT_ID: ci-project }

@@ -1,201 +1,95 @@
-# Marketing Data Platform
+# Media Data Platform
 
-[![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/)
-[![dbt 1.11+](https://img.shields.io/badge/dbt-1.11+-orange.svg)](https://docs.getdbt.com/)
-[![BigQuery](https://img.shields.io/badge/BigQuery-Cloud-red.svg)](https://cloud.google.com/bigquery)
 [![CI](https://github.com/y-ikli/media-data-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/y-ikli/media-data-platform/actions)
+![Python](https://img.shields.io/badge/python-3.12%2B-blue)
+![dbt](https://img.shields.io/badge/dbt-1.10%2B-orange)
+![BigQuery](https://img.shields.io/badge/BigQuery-europe--west1-red)
 
-Pipeline ELT de données marketing centralisant les performances publicitaires multi-sources (Meta Ads, Google Ads) vers des data marts analytiques dans Google BigQuery.
+Pipeline ELT qui centralise les performances publicitaires (Meta Ads, Google Ads) dans BigQuery et produit des tables analytiques fiables : CTR, CPC, CPA, taux de conversion, ROAS, par plateforme, campagne et période.
 
----
+## Le problème
 
-## Contexte
+Chaque plateforme a son schéma, ses noms de colonnes et ses corrections tardives. Sans socle commun, les mêmes KPI sont recalculés de façons différentes dans chaque tableau de bord, et relancer une extraction duplique les lignes. Ce projet fournit **un grain unique, des KPI définis une fois, des chargements rejouables et des données testées**.
 
-Une campagne publicitaire est terminée. On veut analyser ses performances : CTR, CPC, CPA, ROAS — par plateforme, par campagne, par période.
-
-Chaque plateforme expose ses propres schémas et nommages. Ce projet construit le socle de données qui normalise tout en une table analytique unique, cohérente et validée.
-
----
-
-## État des données
+## État des données (à lire avant tout chiffre)
 
 | Source | Mode | Détail |
-|--------|------|--------|
-| **Meta Ads** | API réelle | Campagnes historiques 2023-04-23 → 2025-08-25 (447 lignes, 46 campagnes, $1 402 spend) |
-| **Google Ads** | Simulation | Données générées sur la même période — connecteur prêt pour une vraie API |
+|---|---|---|
+| Meta Ads | API réelle **ou** simulée | Le mode réel (`--mode real`) extrait les insights par campagne et par jour ; il demande des identifiants Meta |
+| Google Ads | **Simulée** | Générateur déterministe. L'extraction réelle (GAQL) n'est pas implémentée : la demander échoue explicitement |
 
----
+Toute ligne porte `data_mode` (`real` ou `simulated`), propagé jusqu'aux tables finales : un tableau de bord public doit filtrer ou afficher cette colonne ([ADR-0003](docs/adr/0003-donnees-simulees-etiquetees.md)). Les commandes ci-dessous fonctionnent sans compte GCP ni Meta.
+
+## Essayer sans cloud (2 minutes)
+
+```bash
+git clone https://github.com/y-ikli/media-data-platform.git && cd media-data-platform
+make install
+make ingest-demo    # extrait et valide les deux sources simulées (dry-run)
+make dbt-duckdb     # zone raw locale (DuckDB) → dbt build : modèles, 47 tests de données, 4 tests unitaires
+```
 
 ## Architecture
 
 ```
-Meta Ads API (réelle)          Google Ads (simulé)
-        │                              │
-        ▼                              ▼
-  Python connector             Python connector
-  (facebook-business SDK)      (fake API — même interface)
-        │                              │
-        └──────────────┬───────────────┘
-                       ▼
-              mdp_raw (BigQuery)
-              Données brutes + métadonnées d'ingestion
-              (partitionné par date, idempotent)
-                       │
-                       ▼
-              dbt Transformations
-              ├─► Staging       — typage, nettoyage, standardisation par source
-              ├─► Intermediate  — union des schémas multi-sources
-              └─► Marts         — KPI calculés, prêts pour la BI
-                       │
-                       ▼
-              Looker Studio dashboard
+Meta Ads API ─┐                                        ┌─► mart_campaign_daily (incrémental)
+              ├─► validation ─► remplacement de fenêtre ─► raw ─► staging ─► intermediate ─┼─► mart_platform_monthly
+Google Ads ───┘   (contrat de     idempotent (BigQuery)          dédup       union         └─► dim_campaign
+ (simulé)          données)                                                                        │
+                                                                                            Looker Studio
 ```
 
-> **En production** avec des campagnes actives, un orchestrateur comme Apache Airflow
-> déclencherait ce pipeline quotidiennement pour ingérer les nouvelles données J-1,
-> relancer dbt et valider la qualité automatiquement.
+Détail, schémas et principes : [docs/architecture.md](docs/architecture.md).
 
----
+## Ce qui a été fait pour que ce soit fiable
 
-## Compétences illustrées
+| Sujet | Réalisation | Où |
+|---|---|---|
+| Chargement rejouable | Table temporaire puis transaction `DELETE` (fenêtre) + `INSERT` ; rejouer donne le même état | [ADR-0001](docs/adr/0001-chargement-idempotent.md), `loader.py` |
+| Schéma stable | Schémas BigQuery déclarés, pas d'autodétection ; lot invalide rejeté avant chargement | `schemas.py`, `validation.py` |
+| Grain garanti | Déduplication en staging (dernière ingestion gagne) et unicité testée à chaque couche | `stg_*`, tests dbt |
+| KPI justes | ROAS = valeur de conversion / dépense (l'ancien « ROAS » était un nombre de conversions par dollar) ; ratios mensuels calculés depuis les sommes ; NULL ≠ 0 | [docs/kpi_reference.md](docs/kpi_reference.md) |
+| Incrémental | `insert_overwrite` partitionné par jour, fenêtre glissante de 7 jours pour les corrections tardives, `reprocess_from` et `--full-refresh` | `mart_campaign_daily.sql`, [runbook](docs/runbook.md) |
+| Environnements | Cibles `duckdb`, `dev` (`mdp_dev_*`), `prod` (`mdp_*`) ; aucune clé JSON lue par le projet | `profiles.yml`, `generate_schema_name` |
+| CI qui peut échouer | Tests dbt réels sur DuckDB, sqlfluff, tests Python (couverture ≥ 85 %), `dbt parse` BigQuery | [ADR-0002](docs/adr/0002-dbt-duckdb-ci.md), `.github/workflows/ci.yml` |
 
-### Ingestion Python — pattern Strategy
-
-Tous les connecteurs héritent d'une classe abstraite `DataSourceConnector` :
-
-```
-DataSourceConnector (abstract)
-├── extract()            ← implémenté par chaque source
-├── load_raw()           ← enrichissement metadata (ingested_at, extract_run_id)
-└── write_to_bigquery()  ← écriture en WRITE_TRUNCATE par partition (idempotent)
-```
-
-Chaque run génère un `extract_run_id` (UUID) pour tracer quelle exécution a produit quelle ligne.
-Ajouter une nouvelle source (TikTok, LinkedIn...) ne nécessite d'implémenter que `extract()`.
-
-### Modélisation BigQuery — architecture Medallion
-
-| Dataset | Rôle | Matérialisation |
-|---------|------|-----------------|
-| `mdp_raw` | Données brutes, audit complet | Table partitionnée par date |
-| `mdp_staging` | Standardisation par source | Vue dbt |
-| `mdp_intermediate` | Union des sources, schéma commun | Vue dbt |
-| `mdp_marts` | KPI finaux, optimisés pour la lecture | Table clusterisée |
-
-### Transformations dbt — KPI calculés une seule fois
-
-| KPI | Formule | Protection |
-|-----|---------|------------|
-| CTR | `clicks / impressions` | `SAFE_DIVIDE` → null si impressions = 0 |
-| CPC | `spend / clicks` | `SAFE_DIVIDE` → null si clicks = 0 |
-| CPA | `spend / conversions` | `SAFE_DIVIDE` → null si conversions nulles (Meta) |
-| ROAS | `conversions / spend` | `SAFE_DIVIDE` → null si spend = 0 |
-| Taux conversion | `conversions / clicks` | `SAFE_DIVIDE` → null si clicks = 0 |
-
-Grain : **1 ligne = 1 campagne × 1 date × 1 plateforme**
-
-### Qualité des données — 36 tests dbt
-
-- `not_null` sur toutes les clés et métriques
-- `accepted_values` sur `platform` (google_ads | meta_ads)
-- `unique_combination_of_columns` sur (report_date, campaign_id, platform)
-- Tests SQL personnalisés : CTR ≤ 100%, clicks ≤ impressions, métriques ≥ 0, formules KPI
-
-### CI/CD — GitHub Actions
-
-- Lint Python (`pylint`)
-- Tests unitaires (`pytest`)
-- Compilation et parsing dbt (sans credentials BigQuery)
-
----
-
-## Structure du projet
+## Structure
 
 ```
-.
-├── src/
-│   ├── ingestion/           # Connecteurs Meta Ads et Google Ads
-│   │   ├── base.py          # Classe abstraite + write BigQuery
-│   │   ├── meta_ads/        # Connecteur API réelle (facebook-business)
-│   │   └── google_ads/      # Connecteur fake API (même interface)
-│   ├── fake_apis/           # Générateurs de données simulées
-│   └── monitoring/          # Contrôles volumétrie + logging d'exécution
-├── dbt/mdp/
-│   └── models/
-│       ├── staging/         # stg_meta_ads__campaign_daily, stg_google_ads__campaign_daily
-│       ├── intermediate/    # int_campaign_daily_unified (UNION ALL)
-│       └── marts/           # mart_campaign_daily (table finale + KPI)
-├── scripts/
-│   ├── run_pipeline.sh      # Pipeline complet : ingestion + dbt run + dbt test
-│   ├── run_dbt.sh           # Helper dbt (run, test, docs, deps…)
-│   ├── ingest_meta_ads.py   # Ingestion Meta Ads standalone
-│   ├── setup_bigquery.sh    # Initialisation datasets BigQuery
-│   ├── deduplicate_raw.py   # Déduplication tables raw
-│   └── debug/               # Scripts de diagnostic BigQuery
-├── tests/unit/              # Tests pytest (structure dbt, fake APIs)
-├── .github/workflows/       # CI GitHub Actions
-└── docs/                    # Architecture, modèle de données, référence KPI
+src/mdp/
+  ingestion/   base, schemas, validation, loader (BigQuery), connecteurs, CLI `mdp-ingest`
+  fake_apis/   générateur déterministe de données simulées
+  dev/         zone raw DuckDB pour dbt sans cloud
+dbt/mdp/       models (staging, intermediate, marts), macros, tests unitaires, profiles.yml
+tests/         unit (ingestion) et dbt (exécution réelle sur DuckDB)
+docs/          architecture, modèle de données, KPI, exploitation, ADR
 ```
 
----
-
-## Lancer le projet
-
-### Prérequis
-
-- Python 3.13 + [uv](https://docs.astral.sh/uv/)
-- Compte GCP avec BigQuery + service account JSON
-- (Optionnel) Compte Meta Ads avec accès API
-
-### Installation
+## Utiliser avec BigQuery
 
 ```bash
-git clone https://github.com/y-ikli/media-data-platform.git
-cd media-data-platform
-
-# Créer l'environnement local
-uv venv .venv --python 3.13
-source .venv/bin/activate
-uv sync --dev
-
-# Configurer les credentials
-cp .env.example .env
-# Remplir .env avec vos valeurs
+cp .env.example .env                      # renseigner GCP_PROJECT_ID
+gcloud auth application-default login
+uv run mdp-ingest --source meta_ads --start 2024-01-01 --end 2024-03-31
+uv run mdp-ingest --source google_ads --start 2024-01-01 --end 2024-03-31
+make dbt-build                            # cible dev : jeux de données mdp_dev_*
 ```
 
-### Ingestion & transformations
+Exploitation (rejouer une période, lire un échec) : [docs/runbook.md](docs/runbook.md).
 
-Option rapide — tout en une commande :
+## Limites connues
 
-```bash
-bash scripts/run_pipeline.sh
-```
+- Le chargement et les modèles sont testés hors BigQuery (client simulé, DuckDB). Le SQL rendu pour BigQuery n'est pas exécuté en CI (`dbt parse` seulement).
+- Aucun tableau de bord n'est versionné : les marts sont conçus pour Looker Studio, sans capture dans ce dépôt.
+- Pas d'orchestration planifiée : l'ingestion se lance à la main ou depuis un planificateur externe.
+- Google Ads simulé ; devises non converties (tout en USD).
 
-Ou étape par étape — voir [QUICKSTART.md](QUICKSTART.md) pour le détail.
+## Feuille de route
 
-### Transformations dbt seules
-
-```bash
-cd dbt/mdp
-dbt deps --profiles-dir .
-dbt run --profiles-dir .
-dbt test --profiles-dir .
-```
-
-Ou via le helper : `bash scripts/run_dbt.sh run`
-
----
-
-## Documentation
-
-| Document | Contenu |
-|----------|---------|
-| [Architecture](docs/architecture.md) | Flux de données, composants, principes de conception |
-| [Modèle de données](docs/data_model.md) | Schémas, grain, partitionnement, clustering |
-| [Référence KPI](docs/kpi_reference.md) | Définitions et formules CTR, CPA, ROAS, CPC |
-
----
+1. **Cloud-natif** : Terraform (jeux de données, comptes de service à moindre privilège, Secret Manager), ingestion en Cloud Run Job déclenché par Cloud Scheduler, authentification GitHub → GCP par Workload Identity Federation, exécution de dbt sur un projet BigQuery de test en CI.
+2. **Observabilité** : fraîcheur et volumétrie alertées (Cloud Monitoring), documentation dbt publiée.
+3. **Optionnel, streaming** : événements de conversion (Pub/Sub → Dataflow → BigQuery) pour un vrai revenu par campagne.
 
 ## Licence
 
-Apache License 2.0
+Apache License 2.0.

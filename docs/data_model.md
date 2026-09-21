@@ -1,120 +1,36 @@
-# Data Model — Marketing Data Platform
+# Modèle de données
 
-## Vue d'ensemble
+## Grain
 
-La plateforme suit une architecture **médaillons (Medallion)** classique : Raw → Staging → Marts.
+**Une ligne = une campagne × un jour × une plateforme.** Clé : `(report_date, campaign_id, platform)`. Unicité testée dans staging, intermediate et marts.
 
-```
-Google Ads API │ Meta Ads API
-     ↓         │     ↓
-  Ingestion    │  Ingestion
-     ↓         │     ↓
-mdp_raw.raw_*__campaign_daily (historisées brutes)
-     ↓         │     ↓
-mdp_staging.stg_*__campaign_daily (nettoyage + typage)
-     ↓         │     ↓
-mdp_staging.int_campaign__daily_unified (unification)
-     ↓         ↓
-mdp_marts.mart_campaign__daily (KPI finalisés)
-     ↓
-BI / Reporting
-```
+## Zone raw
 
----
+Colonnes communes : `date` (DATE, obligatoire), `campaign_id` (STRING, obligatoire), `campaign_name`, `impressions`, `clicks` (INT64, obligatoires), `conversions` (INT64), `conversion_value` (FLOAT64), puis les métadonnées `ingested_at`, `extract_run_id`, `source`, `data_mode`.
 
-## Datasets BigQuery
+| Table | Colonnes propres |
+|---|---|
+| `google_ads_campaign_daily` | `cost_usd` |
+| `meta_ads_campaign_daily` | `spend_usd`, `likes`, `comments`, `shares`, `video_views`, `page_engagement` |
 
-### mdp_raw
-- **Rôle** : Historisation brute des données sources
-- **Accès** : Read-only (populated par ingestion Python)
-- **Retention** : Historique complet
-- **Tables** : `raw_<source>__<entity>` (ex: `raw_google_ads__campaign_daily`)
+Définition faisant foi : [`src/mdp/ingestion/schemas.py`](../src/mdp/ingestion/schemas.py).
 
-### mdp_staging
-- **Rôle** : Transformation et unification
-- **Contenu** : 
-  - Staging tables typées + flagging qualité
-  - Intermediate tables (join multi-source)
-- **Accès** : Analytics engineering (dbt models)
-- **Retention** : Historique complet
+**`conversions` et `conversion_value` sont nullables** : NULL signifie « la source ne suit pas cette métrique », 0 signifie « suivie, et il n'y en a pas eu ». Confondre les deux fausserait CPA et ROAS.
 
-### mdp_marts
-- **Rôle** : Tables analytiques prêtes pour la BI
-- **Accès** : BI tools, dashboards, reporting
-- **Retention** : Historique complet
-- **Tables** : `mart_<domain>__<grain>` (ex: `mart_campaign__daily`)
+**`data_mode`** : `real` (API de la plateforme) ou `simulated` (données générées de façon déterministe).
 
----
+## Marts
 
-## Grain analytique (clé métier)
+`mart_campaign_daily` (faits) : dimensions `report_date`, `campaign_id`, `campaign_name`, `platform`, `data_mode` ; mesures `impressions`, `clicks`, `spend`, `conversions`, `conversion_value`, engagement ; KPI `ctr`, `cpc`, `cpa`, `conversion_rate`, `roas` ([définitions](kpi_reference.md)) ; audit `ingested_at`, `extract_run_id`, `mart_created_at`.
 
-### Définition
-**1 ligne = 1 campagne publicitaire × 1 date × 1 plateforme**
+`mart_platform_monthly` : `report_month`, `platform`, `data_mode`, `campaigns`, sommes des mesures, KPI recalculés depuis les sommes.
 
-### Clé d'unicité
-```
-PRIMARY KEY (date, platform, campaign_id)
-```
+`dim_campaign` : `platform`, `campaign_id`, `current_campaign_name`, `data_mode`, `first_report_date`, `last_report_date`.
 
-### Exemples
-```
-date       | platform   | campaign_id | campaign_name | impressions | clicks | spend | conversions
-2024-01-15 | google_ads | camp_123    | Campaign A    | 1000        | 50     | 250   | 5
-2024-01-15 | meta_ads   | camp_456    | Campaign B    | 2000        | 80     | 400   | 8
-2024-01-16 | google_ads | camp_123    | Campaign A    | 1100        | 55     | 275   | 6
-```
+## Nommage des jeux de données
 
----
+`mdp_raw` (unique) ; `mdp_<couche>` en prod (`mdp_staging`, `mdp_intermediate`, `mdp_marts`) ; `<dataset_dev>_<couche>` ailleurs (défaut `mdp_dev_marts`). Voir la macro `generate_schema_name`.
 
-## Conventions de nommage
+## Partitionnement et coût
 
-Pour faciliter la navigation, chaque table suit une convention stricte :
-
-| Couche | Format | Exemple | Signification |
-|--------|--------|---------|---------------|
-| Raw | raw_<source>__<entity> | raw_google_ads__campaign_daily | Brut Google Ads |
-| Staging | stg_<source>__<entity> | stg_google_ads__campaign_daily | Google Ads nettoyé |
-| Intermediate | int_<domain>__<entity> | int_campaign__daily_unified | Unification multi-sources |
-| Marts | mart_<domain>__<grain> | mart_campaign__daily | Table analytique |
-
----
-
-## Colonnes standard
-
-### Dimensions (identifient la ligne)
-- `date` : Date de la campagne (YYYY-MM-DD)
-- `platform` : Source (google_ads, meta_ads)
-- `account_id` : ID du compte marketing
-- `campaign_id` : ID unique campagne
-- `campaign_name` : Nom lisible campagne
-
-### Métriques (valeurs agrégées)
-- `impressions` : Nombre d'affichages
-- `clicks` : Nombre de clics
-- `spend` : Dépense en devise source
-- `conversions` : Conversions générées
-
-### Métadonnées d'ingestion (Raw uniquement)
-- `ingested_at` : Quand la donnée a été chargée
-- `extract_run_id` : UUID de la session d'extraction
-- `source` : Source système
-
----
-
-## KPI Calculés (au niveau Marts)
-
-| KPI | Formule | Interprétation |
-|-----|---------|------------------|
-| CTR | clicks / impressions | % clics vs affichages |
-| CPA | spend / conversions | Coût par conversion |
-| Conversion Rate | conversions / clicks | % conversions vs clics |
-
----
-
-## Principes de conception
-
-1. **Idempotence** : Rejouer l'ingestion = même résultat
-2. **Historisation** : Aucune donnée supprimée (append-only)
-3. **Réconciliation** : extract_run_id pour tracer les batches
-4. **Qualité progressive** : Flags au staging, rejets au mart
-5. **Séparation** : Raw (brut) → Staging (transformé) → Marts (analytique)
+Raw et `mart_campaign_daily` sont partitionnées par jour ; les requêtes de BI doivent filtrer sur `report_date`. Le remplacement de fenêtre du chargement filtre la colonne de partition : seules les partitions concernées sont lues.

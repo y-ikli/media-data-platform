@@ -1,193 +1,64 @@
-# Architecture — Marketing Data Platform
+# Architecture
 
-## Contexte métier
+## Vue d'ensemble
 
-Une organisation marketing exploite des données de performance issues de plateformes publicitaires (**Google Ads**, **Meta Ads**, etc).
-
-**Défis principaux :**
-- Données distribuées sur plusieurs sources (APIs, formats hétérogènes)
-- Définitions de KPI non harmonisées entre plateformes
-- Mises à jour non uniformes (retards, corrections tardives)
-- Difficultés à industrialiser un reporting fiable et maintenable
-
-**Solution :** Construire un **socle data centralisé** transformant ces flux en **tables analytiques réutilisables**.
-
----
-
-## Flux end-to-end
-
-```
-Google Ads API    Meta Ads API
-    ↓                 ↓
-  Ingestion Python (extraction quotidienne + late data handling)
-    ↓
-Raw Zone (mdp_raw — données brutes + métadonnées)
-    ↓
-dbt Transformations
-    ├─ Staging (typage, nettoyage)
-    ├─ Intermediate (unification multi-sources)
-    └─ Marts (KPI finalisés)
-    ↓
-BigQuery Analytics (mdp_staging, mdp_marts)
-    ↓
-Usages (BI, Dashboards, Analyses ad-hoc)
+```mermaid
+flowchart LR
+  subgraph Ingestion["Ingestion (Python, mdp-ingest)"]
+    M[Meta Ads API] --> C1[MetaAdsConnector]
+    G[Google Ads<br/>simulé] --> C2[GoogleAdsConnector]
+    C1 & C2 --> V[Validation<br/>contrat de données]
+    V --> L[Chargement idempotent<br/>remplacement de fenêtre]
+  end
+  L --> RAW[(mdp_raw<br/>partitionné par jour)]
+  subgraph dbt["Transformations (dbt)"]
+    RAW --> STG[staging<br/>typage + dédup]
+    STG --> INT[intermediate<br/>union multi-plateformes]
+    INT --> MART[mart_campaign_daily<br/>incrémental]
+    MART --> DIM[dim_campaign]
+    MART --> MON[mart_platform_monthly]
+  end
+  MART & MON & DIM --> BI[Looker Studio]
 ```
 
----
+## Principes de conception
 
-## Architecture par couche
+| Principe | Mise en œuvre |
+|---|---|
+| **Idempotence** | Une ingestion remplace une fenêtre de dates dans une transaction (`DELETE` + `INSERT`) : rejouer donne le même état ([ADR-0001](adr/0001-chargement-idempotent.md)) |
+| **Contrat de données explicite** | Schémas BigQuery déclarés (`schemas.py`), pas d'autodétection ; validation avant tout chargement |
+| **Traçabilité** | Chaque ligne raw porte `extract_run_id`, `ingested_at`, `source`, `data_mode` |
+| **Aucun repli silencieux** | Mode `real` sans identifiants = erreur ; `data_mode = simulated` propagé jusqu'aux marts ([ADR-0003](adr/0003-donnees-simulees-etiquetees.md)) |
+| **Grain unique et testé** | `report_date × campaign_id × platform`, unicité vérifiée à chaque couche |
+| **NULL ≠ 0** | Une métrique non suivie par une source est NULL ; les ratios valent NULL si le dénominateur est nul |
+| **Testable sans cloud** | Le même projet dbt s'exécute sur DuckDB en CI ([ADR-0002](adr/0002-dbt-duckdb-ci.md)) |
 
-### 1. Ingestion (Python + Airflow)
+## Couches
 
-**Responsabilités :**
-- Extraction quotidienne des données sources
-- Idempotence garantie (rejouabilité sans doublons)
-- Traçabilité complète (extract_run_id, ingested_at)
+### Raw — `mdp_raw`
+Une table par source (`meta_ads_campaign_daily`, `google_ads_campaign_daily`), partitionnée par `date`, clusterisée par `campaign_id`. Alimentée uniquement par `mdp-ingest`. Les colonnes sont documentées et testées comme *sources* dbt (avec fraîcheur sur `ingested_at`).
 
-**Patterns :**
-- Watermark par `date` (fenêtre = today + 7 jours retro pour late data)
-- Partitionnement par `date` + `source`
-- Chaque run génère un UUID unique (`extract_run_id`)
+### Staging — `mdp_staging` (vues)
+Typage, noms normalisés, **déduplication** : une ligne par `(date, campaign_id)`, la dernière ingestion gagne. Le chargement raw est déjà idempotent ; cette défense évite qu'un chargement manuel ou un ancien mode append ne casse le grain en aval.
 
-**Actuellement implémenté :**
-- Architecture abstraite (classe `DataSourceConnector`)
-- Connecteurs : `GoogleAdsConnector`, `MetaAdsConnector`
-- DAGs Airflow : `google_ads_ingestion.py`, `meta_ads_ingestion.py`
+### Intermediate — `mdp_intermediate` (vue)
+Union des plateformes dans un schéma commun. Les colonnes absentes d'une plateforme (engagement Google, par exemple) sont des NULL typés.
 
----
+### Marts — `mdp_marts`
+- **`mart_campaign_daily`** : table de faits (KPI, engagement, `data_mode`). *Incrémentale*, partitionnée par `report_date`, stratégie `insert_overwrite`, fenêtre glissante de 7 jours pour absorber les corrections tardives des plateformes.
+- **`mart_platform_monthly`** : agrégat mensuel ; les ratios sont recalculés depuis les sommes.
+- **`dim_campaign`** : nom le plus récent par campagne (une campagne renommée ne se dédouble plus dans la BI).
 
-### 2. Raw Zone (mdp_raw)
+## Environnements
 
-**Responsabilités :**
-- Historiser les données brutes, telles que reçues
-- Permettre rejoueabilité et audit complet
+| Cible dbt | Usage | Jeux de données |
+|---|---|---|
+| `duckdb` | tests, CI, développement hors ligne | fichier local |
+| `dev` | BigQuery, développement | `mdp_dev_staging`, `mdp_dev_marts`… |
+| `prod` | BigQuery, déploiement | `mdp_staging`, `mdp_marts`… |
 
-**Conventions :**
-- Tables : `raw_<source>__<entity>` (ex: `raw_google_ads__campaign_daily`)
-- Partitioning : par `date`
-- Colonnes de metadata : `ingested_at`, `extract_run_id`, `source`
+L'authentification BigQuery utilise les *Application Default Credentials* : aucune clé JSON n'est lue par le projet.
 
-**Clé de chargement :** `(date, platform, campaign_id, extract_run_id)`
+## Ce qui n'existe pas encore
 
----
-
-### 3. Staging Zone (mdp_staging — Partie Staging)
-
-**Responsabilités :**
-- Typage et validation des colonnes
-- Flagging de qualité (anomalies détectées)
-- Normalisation des noms de colonnes
-- Ajout constant de `platform`
-
-**Conventions :**
-- Tables : `stg_<source>__<entity>`
-- Colonne supplémentaire : `is_invalid_*` (flags de qualité)
-
-**Exemple :**
-```sql
-SELECT
-  CAST(date AS DATE) AS date,
-  'google_ads' AS platform,
-  CAST(impressions AS INT64) AS impressions,
-  CASE WHEN clicks > impressions THEN TRUE ELSE FALSE END AS is_invalid_clicks
-FROM mdp_raw.raw_google_ads__campaign_daily
-```
-
----
-
-### 4. Intermediate Zone (mdp_staging — Partie Unification)
-
-**Responsabilités :**
-- Union des sources (Google Ads + Meta Ads)
-- Déduplication (garde dernière version par extract_run_id)
-- Schéma commun multi-plateforme
-
-**Conventions :**
-- Tables : `int_<domain>__<entity>` (ex: `int_campaign__daily_unified`)
-
----
-
-### 5. Marts Zone (mdp_marts)
-
-**Responsabilités :**
-- Tables analytiques prêtes pour BI / Reporting
-- KPI calculés et validés
-- Grain analytique stabilisé
-
-**Conventions :**
-- Tables : `mart_<domain>__<grain>` (ex: `mart_campaign__daily`)
-- Partitioning par `date`, clustering par `platform` + `campaign_id`
-
-**Exemple :**
-```sql
-SELECT
-  date,
-  platform,
-  campaign_id,
-  impressions,
-  clicks,
-  spend,
-  conversions,
-  SAFE_DIVIDE(clicks, impressions) AS ctr,
-  SAFE_DIVIDE(spend, conversions) AS cpa
-FROM mdp_staging.int_campaign__daily_unified
-```
-
----
-
-## Grain analytique (clé métier)
-
-**Définition :** 1 ligne = 1 campagne × 1 date × 1 plateforme
-
-**Clé d'unicité :**
-```
-PRIMARY KEY (date, platform, campaign_id)
-```
-
-**Raison :** Chaque plateforme (Google, Meta) expose ses propres campagnes par date. L'union crée un grain commun pour les analyses consolidées.
-
----
-
-## KPI exposés
-
-| KPI | Formule | Granularité | Seuil cible |
-|-----|---------|-------------|-------------|
-| **Impressions** | Métrique brute | campaign × date | - |
-| **Clicks** | Métrique brute | campaign × date | - |
-| **Spend** | Métrique brute | campaign × date | - |
-| **Conversions** | Métrique brute | campaign × date | - |
-| **CTR** | clicks / impressions | campaign × date | > 2% |
-| **CPA** | spend / conversions | campaign × date | < €5 |
-| **Conv. Rate** | conversions / clicks | campaign × date | > 5% |
-
----
-
-## Principes structurants
-
-### 1. Découplage ingestion / transformation
-- Ingestion = capture brute + historisation
-- Transformation = logique métier (dbt)
-- **Bénéfices :** Rejouabilité, maintenabilité, évolutivité
-
-### 2. SQL-first (dbt)
-- Logique analytique versionnée en SQL
-- Tests automatisés (not null, unique, accepted values)
-- Lineage généré (documentation)
-
-### 3. Idempotence
-- Relancer un run = même résultat (pas de doublons)
-- Partitionnement par `date` + `run_id`
-- Clés stables au grain métier
-
-### 4. Historisation complète
-- Append-only (aucune suppression de données)
-- Permet audit et time-travel queries
-
-### 5. Séparation des responsabilités
-- **Raw :** Confiance 100% à la source
-- **Staging :** Nettoyage et standardisation
-- **Marts :** Usages analytiques spécifiques
-
----
-
-
+Orchestration planifiée, infrastructure décrite en code (Terraform), extraction Google Ads réelle, alertes. Voir la [feuille de route](../README.md#feuille-de-route).
