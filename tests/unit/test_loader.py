@@ -30,6 +30,8 @@ def test_loader_creates_a_partitioned_clustered_table_then_replaces_the_window()
     n = loader.replace_window(META_ADS, [{"date": "2024-01-01"}], date(2024, 1, 1), date(2024, 1, 31), "ab-cd")
 
     assert n == 1
+    client.get_dataset.assert_called_once_with("proj.raw")
+    client.create_dataset.assert_not_called()  # le jeu de données existe : aucun droit de création requis
     table = client.create_table.call_args.args[0]
     assert table.time_partitioning.field == "date" and table.clustering_fields == ["campaign_id"]
     assert client.create_table.call_args.kwargs == {"exists_ok": True}
@@ -111,3 +113,13 @@ def test_settings_require_a_project(monkeypatch):
     monkeypatch.setenv("GCP_PROJECT_ID", "p")
     monkeypatch.setenv("BQ_RAW_DATASET", "custom")
     assert Settings.from_env() == Settings("p", "europe-west1", "custom")
+
+
+def test_missing_dataset_is_created_with_the_configured_location():
+    from google.api_core.exceptions import NotFound
+
+    client = MagicMock()
+    client.get_dataset.side_effect = NotFound("absent")
+    BigQueryLoader(SETTINGS, client).ensure_table(META_ADS)
+    dataset = client.create_dataset.call_args.args[0]
+    assert dataset.dataset_id == "raw" and dataset.location == "EU"

@@ -15,6 +15,7 @@ from __future__ import annotations
 import logging
 from datetime import date
 
+from google.api_core.exceptions import NotFound
 from google.cloud import bigquery
 
 from mdp.config import Settings
@@ -57,7 +58,16 @@ class BigQueryLoader:
         return f"{self.settings.project_id}.{self.settings.raw_dataset}.{name}"
 
     def ensure_table(self, spec: TableSpec) -> None:
-        """Crée la table partitionnée par jour et clusterisée si elle n'existe pas."""
+        """Crée le jeu de données raw s'il manque, puis la table (partitionnée par jour, clusterisée) si elle manque."""
+        dataset_id = f"{self.settings.project_id}.{self.settings.raw_dataset}"
+        try:
+            # Lecture d'abord : en production le compte de service n'a pas le droit de créer des jeux de données
+            # (Terraform les crée) ; `create_dataset(exists_ok=True)` exigerait ce droit même s'il existe.
+            self.client.get_dataset(dataset_id)
+        except NotFound:
+            dataset = bigquery.Dataset(dataset_id)
+            dataset.location = self.settings.location
+            self.client.create_dataset(dataset)
         table = bigquery.Table(self.table_id(spec.name), schema=schema_fields(spec))
         table.time_partitioning = bigquery.TimePartitioning(type_=bigquery.TimePartitioningType.DAY, field="date")
         table.clustering_fields = list(spec.cluster_by)

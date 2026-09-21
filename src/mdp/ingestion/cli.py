@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
+from datetime import date, timedelta
 
 from dotenv import load_dotenv
 
@@ -21,8 +22,14 @@ CONNECTORS: dict[str, type[DataSourceConnector]] = {"meta_ads": MetaAdsConnector
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="mdp-ingest", description="Ingère une source publicitaire dans BigQuery (idempotent).")
     p.add_argument("--source", required=True, choices=sorted(CONNECTORS))
-    p.add_argument("--start", required=True, help="AAAA-MM-JJ")
-    p.add_argument("--end", required=True, help="AAAA-MM-JJ (inclus)")
+    p.add_argument("--start", help="AAAA-MM-JJ")
+    p.add_argument("--end", help="AAAA-MM-JJ (inclus)")
+    p.add_argument(
+        "--lookback-days",
+        type=int,
+        metavar="N",
+        help="fenêtre glissante [J-N, J-1] (exécution planifiée) ; exclusif avec --start/--end",
+    )
     p.add_argument(
         "--mode",
         choices=["simulated", "real"],
@@ -34,14 +41,29 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
+def resolve_window(args: argparse.Namespace, today: date | None = None) -> tuple[str, str]:
+    """Fenêtre à ingérer : bornes explicites, ou les N derniers jours complets (jusqu'à hier inclus)."""
+    if args.lookback_days is not None:
+        if args.start or args.end:
+            raise ValueError("--lookback-days est exclusif avec --start/--end")
+        if args.lookback_days < 1:
+            raise ValueError("--lookback-days doit être ≥ 1")
+        yesterday = (today or date.today()) - timedelta(days=1)
+        return (yesterday - timedelta(days=args.lookback_days - 1)).isoformat(), yesterday.isoformat()
+    if not (args.start and args.end):
+        raise ValueError("--start et --end sont requis (ou --lookback-days)")
+    return args.start, args.end
+
+
 def main(argv: list[str] | None = None) -> int:
     load_dotenv()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
     args = build_parser().parse_args(argv)
     try:
+        start, end = resolve_window(args)
         connector = CONNECTORS[args.source](args.mode)
         loader = None if args.dry_run else BigQueryLoader(Settings.from_env())
-        reports = connector.run(args.start, args.end, loader, args.chunk_days, args.dry_run)
+        reports = connector.run(start, end, loader, args.chunk_days, args.dry_run)
     except (ConfigError, NotImplementedError, DataQualityError, ValueError) as exc:
         logging.getLogger("mdp").error("%s", exc)
         return 2
