@@ -42,3 +42,6 @@ infra/.terraform/
 *.tfstate.*
 infra/envs/*.tfvars
 !infra/envs/*.tfvars.example
+
+# Guide personnel (non versionné)
+_guide_looker/
