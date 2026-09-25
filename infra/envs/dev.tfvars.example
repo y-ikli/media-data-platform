@@ -1,0 +1,6 @@
+project_id          = "mdp-dev-123456"   # projet GCP dédié à l'environnement
+environment         = "dev"
+schedule_paused     = true               # rien ne tourne avant un premier run manuel réussi
+deletion_protection = false
+alert_email         = ""                 # ex. "vous@example.com"
+meta_mode           = "simulated"

@@ -1,0 +1,13 @@
+.git
+.venv
+.env*
+infra
+tests
+docs
+**/__pycache__
+.ruff_cache
+.pytest_cache
+dbt/mdp/target
+dbt/mdp/dbt_packages
+dbt/mdp/logs
+*.duckdb

@@ -3,81 +3,67 @@ version: 2
 models:
   - name: mart_campaign_daily
     description: >
-      BI-ready daily campaign performance table with calculated KPIs.
-      Primary table for Looker Studio dashboards and campaign analytics.
-      All KPIs use safe_divide to handle zero denominators (returns null instead of error).
-
-    columns:
-      - name: report_date
-        description: Date of the performance metrics
-        tests:
-          - not_null
-
-      - name: campaign_id
-        description: Unique campaign identifier per platform
-        tests:
-          - not_null
-
-      - name: campaign_name
-        description: Campaign name
-
-      - name: platform
-        description: Advertising platform (google_ads or meta_ads)
-        tests:
-          - not_null
-          - accepted_values:
-              values: ['google_ads', 'meta_ads']
-
-      - name: impressions
-        description: Total impressions
-        tests:
-          - not_null
-
-      - name: clicks
-        description: Total clicks
-        tests:
-          - not_null
-
-      - name: spend
-        description: Total advertising spend in USD
-        tests:
-          - not_null
-
-      - name: conversions
-        description: Total conversions — null for Meta Ads (not provided by API)
-
-      - name: ctr
-        description: Click-through rate — clicks / impressions. Null if impressions = 0
-
-      - name: cpa
-        description: Cost per acquisition — spend / conversions. Null if conversions = 0
-
-      - name: roas
-        description: Return on ad spend — conversions / spend. Null if spend = 0
-
-      - name: cpc
-        description: Cost per click — spend / clicks. Null if clicks = 0
-
-      - name: conversion_rate
-        description: Conversion rate — conversions / clicks. Null if clicks = 0
-
-      - name: ingested_at
-        description: Timestamp when data was ingested into raw layer
-
-      - name: extract_run_id
-        description: Unique identifier for the extraction run
-
-      - name: source
-        description: Source identifier from raw layer
-
-      - name: mart_created_at
-        description: Timestamp when this mart record was created
-        tests:
-          - not_null
-
+      Table de faits des performances publicitaires, prête pour la BI (Looker Studio).
+      Grain : **report_date × campaign_id × platform**. Incrémentale, partitionnée par jour.
+      `NULL` = non disponible pour la source (jamais 0) ; les ratios valent NULL si leur dénominateur est nul.
+      `data_mode` distingue les données réelles des données simulées : à filtrer dans tout tableau de bord public.
     data_tests:
       - dbt_utils.unique_combination_of_columns:
-          combination_of_columns:
-            - report_date
-            - campaign_id
-            - platform
+          arguments: {combination_of_columns: [report_date, campaign_id, platform]}
+      - dbt_utils.expression_is_true:
+          arguments: {expression: "clicks <= impressions"}
+      - dbt_utils.expression_is_true:
+          arguments: {expression: "ctr is null or ctr between 0 and 1"}
+      - dbt_utils.expression_is_true:
+          arguments: {expression: "impressions >= 0 and clicks >= 0 and spend >= 0 and coalesce(conversions, 0) >= 0"}
+      - dbt_utils.expression_is_true:
+          arguments: {expression: "conversions is null or conversions <= clicks"}
+    columns:
+      - name: report_date
+        data_tests: [not_null]
+      - name: campaign_id
+        data_tests: [not_null]
+      - name: platform
+        data_tests:
+          - not_null
+          - accepted_values: {arguments: {values: [google_ads, meta_ads]}}
+      - name: data_mode
+        data_tests:
+          - not_null
+          - accepted_values: {arguments: {values: [real, simulated]}}
+      - name: spend
+        description: Dépense en USD.
+        data_tests: [not_null]
+      - name: ctr
+        description: clics / impressions.
+      - name: cpc
+        description: dépense / clics.
+      - name: cpa
+        description: dépense / conversions ; NULL si la source ne suit pas les conversions.
+      - name: conversion_rate
+        description: conversions / clics.
+      - name: roas
+        description: >
+          Return on ad spend = valeur des conversions / dépense. NULL si la valeur de conversion n'est pas suivie
+          (avant v2 la colonne contenait conversions / dépense, qui n'est pas un ROAS).
+
+  - name: mart_platform_monthly
+    description: Agrégat mensuel par plateforme ; ratios recalculés depuis les sommes.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments: {combination_of_columns: [report_month, platform, data_mode]}
+    columns:
+      - name: report_month
+        data_tests: [not_null]
+      - name: platform
+        data_tests:
+          - accepted_values: {arguments: {values: [google_ads, meta_ads]}}
+
+  - name: dim_campaign
+    description: Une ligne par campagne et plateforme, avec le nom le plus récent.
+    columns:
+      - name: campaign_id
+        data_tests: [not_null]
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments: {combination_of_columns: [platform, campaign_id]}

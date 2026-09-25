@@ -1,50 +1,29 @@
-{{
-  config(
-    materialized='view',
-    tags=['intermediate', 'unified']
-  )
-}}
-
+{#- Union des plateformes dans un schéma commun. Les colonnes absentes d'une plateforme sont NULL et typées :
+    NULL signifie « non disponible pour cette source », jamais 0. -#}
 with google_ads as (
-  select
-    report_date,
-    cast(campaign_id as string) as campaign_id,
-    campaign_name,
-    impressions,
-    clicks,
-    conversions,
-    cost_usd as spend,
-    null as likes,
-    null as comments,
-    null as shares,
-    null as video_views,
-    null as page_engagement,
-    ingested_at,
-    extract_run_id,
-    source,
-    'google_ads' as platform
-  from {{ ref('stg_google_ads__campaign_daily') }}
+    select
+        report_date, campaign_id, campaign_name,
+        'google_ads' as platform,
+        impressions, clicks, conversions, conversion_value,
+        cost_usd as spend_usd,
+        cast(null as bigint) as likes,
+        cast(null as bigint) as comments,
+        cast(null as bigint) as shares,
+        cast(null as bigint) as video_views,
+        cast(null as bigint) as page_engagement,
+        data_mode, ingested_at, extract_run_id
+    from {{ ref('stg_google_ads__campaign_daily') }}
 ),
 
 meta_ads as (
-  select
-    report_date,
-    cast(campaign_id as string) as campaign_id,
-    campaign_name,
-    impressions,
-    clicks,
-    null as conversions,
-    spend_usd as spend,
-    likes,
-    comments,
-    shares,
-    video_views,
-    page_engagement,
-    ingested_at,
-    extract_run_id,
-    source,
-    'meta_ads' as platform
-  from {{ ref('stg_meta_ads__campaign_daily') }}
+    select
+        report_date, campaign_id, campaign_name,
+        'meta_ads' as platform,
+        impressions, clicks, conversions, conversion_value,
+        spend_usd,
+        likes, comments, shares, video_views, page_engagement,
+        data_mode, ingested_at, extract_run_id
+    from {{ ref('stg_meta_ads__campaign_daily') }}
 )
 
 select * from google_ads

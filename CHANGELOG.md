@@ -1,9 +1,44 @@
-# Journal de Modifications — Plateforme Data Marketing
+# Journal des modifications
 
-Toutes les modifications notables du projet sont documentées ici.
-Ce journal suit le format [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
----
+## [0.3.0] — Infrastructure GCP en code
+
+### Ajouté
+- `infra/` (Terraform) : jeux de données BigQuery, cinq comptes de service à moindre privilège, Secret Manager (conteneurs seulement), Artifact Registry, jobs Cloud Run (ingestion Meta, ingestion Google, dbt), workflow Workflows, Cloud Scheduler, Workload Identity Federation restreinte au dépôt et à la branche, alertes Cloud Monitoring, budget optionnel. ADR-0004 et ADR-0005.
+- `Dockerfile` (image unique des jobs, utilisateur non-root) ; workflows GitHub *Infra* (fmt, validate, tflint, trivy) et *Deploy* (WIF).
+- `mdp-ingest --lookback-days N` : fenêtre glissante pour les exécutions planifiées.
+- `tests/unit/test_infra_contract.py` : arguments des jobs, variables d'environnement, absence de secret dans Terraform.
+
+### Corrigé
+- Le chargeur créait le jeu de données raw sans jamais le vérifier ; il le lit d'abord et ne le crée que s'il manque (le compte de production n'a pas le droit de création).
+
+### Non fait
+- L'infrastructure n'a pas été appliquée sur un projet GCP réel.
+
+## [0.2.0] — Fiabilisation du pipeline
+
+### Corrigé
+- **Chargement non idempotent** : le code faisait `WRITE_APPEND` alors que la documentation annonçait `WRITE_TRUNCATE`. Remplacé par un remplacement atomique de fenêtre ([ADR-0001](docs/adr/0001-chargement-idempotent.md)).
+- **ROAS erroné** : la colonne contenait `conversions / dépense`. Désormais `valeur de conversion / dépense` ; colonne `conversion_value` ajoutée. **Changement cassant pour les tableaux de bord qui lisaient l'ancien `roas`.**
+- CI qui ne pouvait pas échouer (`dbt compile || echo`) : remplacée par des tests dbt réels sur DuckDB.
+- Extraction Google Ads « réelle » qui retournait une liste vide en silence : échoue explicitement.
+- Repli silencieux vers des données simulées quand les identifiants manquaient : supprimé.
+- Documentation décrivant des DAGs Airflow supprimés depuis avril.
+
+### Ajouté
+- Package `mdp` (`src/mdp`), CLI `mdp-ingest` (`--mode`, `--dry-run`, découpage en fenêtres).
+- Schémas raw explicites, validation avant chargement, colonne `data_mode`.
+- Générateur de données simulées déterministe.
+- dbt : déduplication en staging, `mart_campaign_daily` incrémental partitionné, `mart_platform_monthly`, `dim_campaign`, sources avec fraîcheur, tests unitaires dbt, macros portables BigQuery/DuckDB.
+- Séparation des environnements (`duckdb`, `dev`, `prod`), authentification par Application Default Credentials.
+- Tests : 54 tests Python (couverture 97 %), scénario incrémental complet sur DuckDB, sqlfluff.
+- Documentation : architecture, modèle de données, KPI, exploitation, ADR.
+
+### Supprimé
+- Scripts shell de diagnostic BigQuery, `deduplicate_raw.py`, modules de monitoring hérités d'Airflow (non utilisés, non testés).
+
+## Historique antérieur (avant 0.2.0)
 
 ## [Partie 11] Refactoring — suppression Airflow, nettoyage complet - 2026-04-10
 

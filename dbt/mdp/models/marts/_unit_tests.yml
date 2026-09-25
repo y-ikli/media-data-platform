@@ -1,0 +1,29 @@
+unit_tests:
+  - name: mart_kpis_are_null_not_zero_or_error_when_the_denominator_is_zero
+    model: mart_campaign_daily
+    overrides:
+      macros:
+        is_incremental: false
+    given:
+      - input: ref('int_campaign_daily_unified')
+        rows:
+          - {report_date: 2024-01-01, campaign_id: a, platform: google_ads, impressions: 1000, clicks: 50, conversions: 5, conversion_value: 500.0, spend_usd: 100.0, data_mode: simulated}
+          - {report_date: 2024-01-01, campaign_id: b, platform: meta_ads,   impressions: 0,    clicks: 0,  conversions: 0, conversion_value: 0.0,   spend_usd: 10.0,  data_mode: simulated}
+          - {report_date: 2024-01-01, campaign_id: c, platform: meta_ads,   impressions: 500,  clicks: 20, conversions: null, conversion_value: null, spend_usd: 30.0, data_mode: simulated}
+    expect:
+      rows:
+        - {campaign_id: a, ctr: 0.05, cpc: 2.0, cpa: 20.0, conversion_rate: 0.1, roas: 5.0}
+        - {campaign_id: b, ctr: null, cpc: null, cpa: null, conversion_rate: null, roas: 0.0}
+        - {campaign_id: c, ctr: 0.04, cpc: 1.5, cpa: null, conversion_rate: null, roas: null}
+
+  - name: monthly_ratios_are_computed_from_sums_not_averaged
+    description: "CPC = Σ dépense / Σ clics. Un jour à 1 clic très cher ne doit pas dominer un mois de 1 000 clics."
+    model: mart_platform_monthly
+    given:
+      - input: ref('mart_campaign_daily')
+        rows:
+          - {report_date: 2024-01-01, campaign_id: a, platform: google_ads, data_mode: simulated, impressions: 100, clicks: 1,    spend: 100.0, conversions: 1, conversion_value: 100.0}
+          - {report_date: 2024-01-02, campaign_id: a, platform: google_ads, data_mode: simulated, impressions: 100, clicks: 999,  spend: 100.0, conversions: 9, conversion_value: 500.0}
+    expect:
+      rows:
+        - {report_month: 2024-01-01, platform: google_ads, data_mode: simulated, campaigns: 1, impressions: 200, clicks: 1000, spend: 200.0, cpc: 0.2, cpa: 20.0, roas: 3.0}

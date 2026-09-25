@@ -1,34 +1,44 @@
 # Python
 __pycache__/
-*.pyc
-*.pyo
+*.py[cod]
 *.egg-info/
-.Python
+.venv/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
 
-# Environment
+# Environnement et secrets (jamais versionnés)
 .env
-.env/
+.env.*
+!.env.example
+*-key.json
+*credentials*.json
 
-# Logs
+# Journaux
 *.log
 logs/
 
-# Airflow
-.airflow/
-
-# OS
+# OS / IDE
 .DS_Store
 Thumbs.db
-
-# IDE
 .vscode/
 .idea/
 
-# dbt generated files
-dbt/mdp/package-lock.yml
+# dbt
 dbt/mdp/target/
 dbt/mdp/dbt_packages/
+dbt/mdp/logs/
+*.duckdb
+*.duckdb.wal
 
-# Documentation
-docs/tmp_*
-tmp_*
+# Assistants IA
+.claude/
+CLAUDE.md
+
+# Terraform
+infra/.terraform/
+*.tfstate
+*.tfstate.*
+infra/envs/*.tfvars
+!infra/envs/*.tfvars.example

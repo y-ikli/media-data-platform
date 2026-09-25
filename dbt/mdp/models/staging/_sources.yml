@@ -1,74 +1,74 @@
 version: 2
 
 sources:
-  - name: raw_google_ads
-    description: Raw Google Ads data ingested from fake API
-    database: "{{ var('gcp_project') }}"
+  - name: raw
+    description: >
+      Zone raw alimentée par `mdp-ingest` (une table par source). Chaque chargement remplace une fenêtre de
+      dates ; les lignes portent `ingested_at`, `extract_run_id` et `data_mode` (real | simulated).
     schema: "{{ var('raw_dataset') }}"
+    loaded_at_field: ingested_at
+    freshness:
+      warn_after: {count: 7, period: day}
+      error_after: {count: 30, period: day}
     tables:
       - name: google_ads_campaign_daily
-        description: Daily campaign-level performance metrics from Google Ads
+        description: "Performances journalières par campagne Google Ads (simulées : extraction réelle non implémentée)."
         columns:
           - name: date
-            description: Date of performance metrics
-            tests:
-              - not_null
+            data_tests: [not_null]
           - name: campaign_id
-            description: Unique campaign identifier
-            tests:
-              - not_null
+            data_tests: [not_null]
           - name: campaign_name
-            description: Campaign name
           - name: impressions
-            description: Number of impressions
+            data_tests: [not_null]
           - name: clicks
-            description: Number of clicks
+            data_tests: [not_null]
           - name: conversions
-            description: Number of conversions
+            description: Nombre de conversions ; NULL quand la source ne les suit pas (différent de 0).
+          - name: conversion_value
+            description: Valeur des conversions en USD ; NULL si non suivie.
+          - name: ingested_at
+            data_tests: [not_null]
+          - name: extract_run_id
+            data_tests: [not_null]
+          - name: source
+          - name: data_mode
+            data_tests:
+              - not_null
+              - accepted_values: {arguments: {values: [real, simulated]}}
           - name: cost_usd
-            description: Amount spent in USD
-          - name: ingested_at
-            description: Timestamp of ingestion
-          - name: extract_run_id
-            description: Unique run identifier
-          - name: source
-            description: Source identifier
-
-  - name: raw_meta_ads
-    description: Raw Meta Ads (Facebook/Instagram) data ingested from real API
-    database: "{{ var('gcp_project') }}"
-    schema: "{{ var('raw_dataset') }}"
-    tables:
+            description: Dépense en USD.
+            data_tests: [not_null]
       - name: meta_ads_campaign_daily
-        description: Daily campaign-level performance metrics from Meta Ads
+        description: Performances journalières par campagne Meta Ads (Facebook/Instagram).
         columns:
           - name: date
-            description: Date of performance metrics
-            tests:
-              - not_null
+            data_tests: [not_null]
           - name: campaign_id
-            description: Unique campaign identifier
-            tests:
-              - not_null
+            data_tests: [not_null]
           - name: campaign_name
-            description: Campaign name
           - name: impressions
-            description: Number of impressions
+            data_tests: [not_null]
           - name: clicks
-            description: Number of clicks
+            data_tests: [not_null]
           - name: conversions
-            description: Number of conversions
+            description: Somme des actions d'achat configurées ; NULL si le pixel ne les remonte pas.
+          - name: conversion_value
+            description: Valeur des achats en USD ; NULL si non suivie.
           - name: spend_usd
-            description: Amount spent in USD
+            description: Dépense en USD.
+            data_tests: [not_null]
           - name: likes
-            description: Number of likes/reactions
           - name: comments
-            description: Number of comments
           - name: shares
-            description: Number of shares
+          - name: video_views
+          - name: page_engagement
           - name: ingested_at
-            description: Timestamp of ingestion
+            data_tests: [not_null]
           - name: extract_run_id
-            description: Unique run identifier
+            data_tests: [not_null]
           - name: source
-            description: Source identifier
+          - name: data_mode
+            data_tests:
+              - not_null
+              - accepted_values: {arguments: {values: [real, simulated]}}

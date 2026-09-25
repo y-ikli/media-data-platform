@@ -2,65 +2,15 @@ version: 2
 
 models:
   - name: int_campaign_daily_unified
-    description: >
-      Unified cross-platform campaign daily performance data.
-      Combines Google Ads and Meta Ads into a single schema with a platform column.
-      Spend is normalized to a single field (spend) regardless of source naming.
-
-    columns:
-      - name: report_date
-        description: Date of the performance metrics
-        tests:
-          - not_null
-
-      - name: campaign_id
-        description: Unique campaign identifier per platform
-        tests:
-          - not_null
-
-      - name: campaign_name
-        description: Campaign name
-
-      - name: platform
-        description: Advertising platform (google_ads or meta_ads)
-        tests:
-          - not_null
-          - accepted_values:
-              values: ['google_ads', 'meta_ads']
-
-      - name: impressions
-        description: Total impressions
-        tests:
-          - not_null
-
-      - name: clicks
-        description: Total clicks
-        tests:
-          - not_null
-
-      - name: conversions
-        description: Total conversions — null for Meta Ads (not provided by API)
-
-      - name: spend
-        description: Total spend in USD (normalized from spend_usd / cost_usd)
-        tests:
-          - not_null
-
-      - name: ingested_at
-        description: Timestamp when data was ingested into raw layer
-
-      - name: extract_run_id
-        description: Unique identifier for the extraction run
-
-      - name: source
-        description: Source identifier from raw layer
-
-      - name: unified_at
-        description: Timestamp when this record was unified
-
+    description: "Performances journalières unifiées (Google Ads + Meta Ads). Grain : report_date × campaign_id × platform."
     data_tests:
       - dbt_utils.unique_combination_of_columns:
-          combination_of_columns:
-            - report_date
-            - campaign_id
-            - platform
+          arguments: {combination_of_columns: [report_date, campaign_id, platform]}
+    columns:
+      - name: platform
+        data_tests:
+          - not_null
+          - accepted_values: {arguments: {values: [google_ads, meta_ads]}}
+      - name: data_mode
+        data_tests:
+          - accepted_values: {arguments: {values: [real, simulated]}}

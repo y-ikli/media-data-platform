@@ -1,35 +1,34 @@
-name: 'mdp'
-version: '1.0.0'
-profile: 'mdp'
+name: mdp
+version: '2.0.0'
+profile: mdp
+require-dbt-version: [">=1.10.0", "<2.0.0"]
 
-# Chemins
 model-paths: ["models"]
-analysis-paths: ["analyses"]
 test-paths: ["tests"]
-seed-paths: ["seeds"]
 macro-paths: ["macros"]
-snapshot-paths: ["snapshots"]
 
-clean-targets:
-  - "target"
-  - "dbt_packages"
+clean-targets: ["target", "dbt_packages"]
 
-# Variables globales
 vars:
-  gcp_project: media-data-platform
   raw_dataset: mdp_raw
-  staging_dataset: mdp_staging
-  marts_dataset: mdp_marts
+  # Fenêtre de retraitement de l'incrémental : les corrections tardives des plateformes
+  # publicitaires touchent typiquement les derniers jours déjà chargés.
+  lookback_days: 7
 
-# Configuration des modèles par couche
 models:
   mdp:
     staging:
       +materialized: view
-      +schema: mdp_staging
+      +schema: staging
+      +tags: [staging]
     intermediate:
       +materialized: view
-      +schema: mdp_intermediate
+      +schema: intermediate
+      +tags: [intermediate]
     marts:
-      +materialized: table
-      +schema: mdp_marts
+      +schema: marts
+      +tags: [marts]
+
+dispatch:
+  - macro_namespace: mdp
+    search_order: ['mdp']

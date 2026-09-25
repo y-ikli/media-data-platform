@@ -1,0 +1,8 @@
+project_id          = "mdp-prod-123456"
+environment         = "prod"
+schedule_paused     = false
+deletion_protection = true
+alert_email         = "vous@example.com"
+meta_mode           = "real"             # exige les 4 secrets mdp-meta-ads-* (voir infra/README.md)
+bi_readers          = ["group:bi@example.com"]
+# billing_account   = "XXXXXX-XXXXXX-XXXXXX"

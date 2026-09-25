@@ -1,0 +1,25 @@
+# Exécution quotidienne : les deux ingestions en parallèle, puis dbt (modèles + tests).
+# Si une étape échoue, l'exécution échoue et l'alerte Monitoring se déclenche : dbt ne tourne pas sur des données incomplètes.
+main:
+  steps:
+    - ingest:
+        parallel:
+          branches:
+            - meta:
+                steps:
+                  - run_meta:
+                      call: googleapis.run.v2.projects.locations.jobs.run
+                      args:
+                        name: projects/${project_id}/locations/${region}/jobs/${meta_job}
+            - google:
+                steps:
+                  - run_google:
+                      call: googleapis.run.v2.projects.locations.jobs.run
+                      args:
+                        name: projects/${project_id}/locations/${region}/jobs/${google_job}
+    - transform:
+        call: googleapis.run.v2.projects.locations.jobs.run
+        args:
+          name: projects/${project_id}/locations/${region}/jobs/${dbt_job}
+    - done:
+        return: ok
