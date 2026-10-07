@@ -1,6 +1,6 @@
 # Media Data Platform
 
-> **Projet en cours de mise à jour.** Une nouvelle version, entièrement sur BigQuery, est en préparation. Le code sera publié ici à l'issue de cette mise à jour.
+> **Projet en cours de mise à jour.** Une nouvelle version est en préparation. Le code sera publié ici à l'issue de cette mise à jour.
 
 ## Le sujet
 
@@ -10,14 +10,12 @@ Une agence marketing gère des campagnes publicitaires sur Meta Ads et sur Googl
 
 ## La mise à jour en cours
 
-- Exécution de bout en bout sur Google Cloud et BigQuery.
-- Transformations et tests avec dbt Core.
-- Nouvelles captures et documentation.
+- Exécution de bout en bout sur Google Cloud et BigQuery.(Nouveau compte bigquerry)
+- Transformations et tests avec dbt Core.(au lieu de dbt cloud)
+- Nouvelles captures et documentation.( restitution avec looker)
 
 ## En attendant
 
 Présentation du projet : [portfolio](https://y-ikli.github.io/portfolio/projets/agence_media/)
-
-Je présente volontiers le projet et son code lors d'un échange.
 
 Younes IKLI — [portfolio](https://y-ikli.github.io/portfolio/) · [LinkedIn](https://www.linkedin.com/in/yikli/)
