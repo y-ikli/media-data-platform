@@ -1,6 +1,6 @@
 # Media Data Platform
 
-> **Projet en cours de mise à jour.** Une nouvelle version est en préparation. Le code sera publié ici à l'issue de cette mise à jour.
+> **Projet en cours de mise à jour.** L'ancienne version du projet a été rendue privée, le temps de cette mise à jour. Le code de la nouvelle version sera publié ici dès qu'elle sera prête.
 
 ## Le sujet
 
@@ -10,9 +10,9 @@ Une agence marketing gère des campagnes publicitaires sur Meta Ads et sur Googl
 
 ## La mise à jour en cours
 
-- Exécution de bout en bout sur Google Cloud et BigQuery.(Nouveau compte bigquerry)
-- Transformations et tests avec dbt Core.(au lieu de dbt cloud)
-- Nouvelles captures et documentation.( restitution avec looker)
+- Exécution de bout en bout sur Google Cloud et BigQuery (nouveau compte BigQuery).
+- Transformations et tests avec dbt Core (au lieu de dbt Cloud).
+- Nouvelles captures et documentation (restitution avec Looker Studio).
 
 ## En attendant
 
