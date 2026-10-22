@@ -25,6 +25,14 @@ Orchestration prévue : Cloud Scheduler ─► Cloud Workflows ─┬─► inge
                                                           └─► ingestion Google Ads ─┴─► dbt build
 ```
 
+### dbt Core sur BigQuery
+
+![dbt build sur BigQuery](docs/images/dbt_build.png)
+
+### Tables finales dans BigQuery
+
+![Tables finales dans BigQuery](docs/images/bigquery.png)
+
 ### Lignage dbt
 
 ![Lignage dbt](docs/images/dbt_lignage.png)
