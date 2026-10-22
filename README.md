@@ -13,7 +13,7 @@ Une agence marketing pilote ses campagnes sur Meta et sur Google. Chaque platefo
 ## Architecture
 
 ```
-Meta Ads (API réelle) ─┐
+Meta Ads (simulé) ─────┐
                        ├─► contrat de données ─► BigQuery ads_raw ─► dbt : staging ─► intermediate ─► marts ─► Looker Studio
 Google Ads (simulé) ───┘    (lot invalide = rien n'est chargé)
 
@@ -35,7 +35,25 @@ Orchestration prévue : Cloud Scheduler ─► Cloud Workflows ─┬─► inge
 | Déploiement | Image Docker, Cloud Run Jobs, Cloud Workflows, Cloud Scheduler, déploiement depuis GitHub Actions sans clé | écrit, à appliquer |
 | Restitution | Tables `ads_marts` prêtes pour Looker Studio : rentabilité par campagne, comparaison Meta / Google | tables prêtes ; tableau de bord à construire |
 
-Les données Google Ads sont simulées et étiquetées `data_mode = simulated` jusque dans les tables finales. Meta Ads se lit sur l'API réelle (`--mode real`) ; sans accès configurés, il tourne aussi en simulé, avec la même étiquette.
+Les données publiées dans ce dépôt sont **simulées** pour les deux plateformes, de façon déterministe, et étiquetées `data_mode = simulated` jusque dans les tables finales.
+
+## Une architecture prête pour les API réelles
+
+L'ingestion est modulaire : chaque source est un connecteur qui respecte la même interface (`src/adsdata/ingestion/base.py`). Ajouter une source revient à écrire un connecteur et à déclarer son schéma ; le contrat de données, le chargement et dbt restent identiques.
+
+Le connecteur Meta Ads sait lire l'**API Marketing réelle** de Meta (bibliothèque officielle `facebook-business`). Il a déjà été testé sur un vrai compte publicitaire, lors d'une première version du projet. Les données réelles sont alors étiquetées `data_mode = real`, ce qui empêche de les confondre avec les données simulées.
+
+Pour passer Meta Ads en données réelles :
+
+1. Créer une application sur Meta for Developers, avec le produit API Marketing, et générer un jeton d'accès avec la permission `ads_read`.
+2. Renseigner dans `.env` (jamais envoyé sur GitHub) : `META_ADS_ACCESS_TOKEN`, `META_ADS_ACCOUNT_ID`, et si possible `META_ADS_APP_ID` et `META_ADS_APP_SECRET`.
+3. Installer l'option Meta et lancer l'ingestion en mode réel :
+
+```bash
+uv run --extra meta --env-file .env adsdata-ingest --source meta_ads --mode real --lookback-days 7
+```
+
+En production, le jeton est lu depuis Secret Manager, jamais écrit dans le code ni dans l'état Terraform.
 
 ## Les tables produites
 
