@@ -1,0 +1,99 @@
+[project]
+name = "adsdata"
+version = "0.1.0"
+description = "Pipeline ELT de données publicitaires (Meta Ads, Google Ads) vers BigQuery, modélisé avec dbt"
+requires-python = ">=3.14"
+dependencies = [
+    "google-cloud-bigquery>=3.46.1",
+    "python-dotenv>=1.2.4",
+]
+
+[project.optional-dependencies]
+meta = [
+    "facebook-business>=26.0.2",
+]
+
+[dependency-groups]
+dbt = [
+    "dbt-bigquery>=1.12.1",
+]
+dev = [
+    "mypy>=2.4.0",
+    "pre-commit>=4.7.0",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.17.0",
+    "sqlfluff>=4.4.0",
+    "sqlfluff-templater-dbt>=4.4.0",
+]
+
+[project.scripts]
+adsdata-ingest = "adsdata.ingestion.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/adsdata"]
+
+[tool.ruff]
+line-length = 99
+target-version = "py314"
+
+[tool.ruff.lint]
+select = [
+    "E", "W",  # pycodestyle (PEP 8)
+    "F",       # pyflakes : vraies erreurs
+    "I",       # ordre des imports
+    "N",       # nommage PEP 8
+    "D",       # docstrings PEP 257
+    "UP",      # syntaxe moderne
+    "B",       # pièges classiques
+    "SIM",     # simplifications
+    "C4",      # compréhensions
+    "PT",      # bonnes pratiques pytest
+    "RUF",     # règles propres à ruff
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "pep257"
+
+# D401 (« mode impératif ») suppose des docstrings en anglais ; elles sont en français ici.
+[tool.ruff.lint.extend-per-file-ignores]
+"src/**" = ["D401"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D"]
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+files = ["src"]
+
+# La bibliothèque Meta n'est pas typée, et n'est installée qu'avec l'option meta.
+[[tool.mypy.overrides]]
+module = ["facebook_business.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+    "--import-mode=importlib",
+    "-m", "not integration",
+]
+markers = [
+    "integration: écrit dans un vrai projet BigQuery (ADSDATA_IT_PROJECT requis)",
+]
+
+[tool.coverage.run]
+source = ["adsdata"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 95
+show_missing = true
+skip_covered = true

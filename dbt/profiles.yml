@@ -1,0 +1,23 @@
+# Connexion à BigQuery : identifiants par défaut de gcloud (aucune clé dans le dépôt).
+# Toutes les valeurs viennent de l'environnement (.env en local, variables du job en production).
+ads_analytics:
+  target: "{{ env_var('DBT_TARGET', 'dev') }}"
+  outputs:
+    dev:
+      type: bigquery
+      method: oauth
+      project: "{{ env_var('GCP_PROJECT_ID') }}"
+      dataset: "{{ env_var('DBT_DEV_DATASET', 'ads_dev') }}"
+      location: "{{ env_var('BQ_LOCATION', 'europe-west1') }}"
+      threads: 4
+      job_execution_timeout_seconds: 300
+      maximum_bytes_billed: 1000000000
+    prod:
+      type: bigquery
+      method: oauth
+      project: "{{ env_var('GCP_PROJECT_ID') }}"
+      dataset: ads
+      location: "{{ env_var('BQ_LOCATION', 'europe-west1') }}"
+      threads: 4
+      job_execution_timeout_seconds: 300
+      maximum_bytes_billed: 1000000000

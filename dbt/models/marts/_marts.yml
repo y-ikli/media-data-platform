@@ -1,0 +1,76 @@
+version: 2
+
+models:
+  - name: mart_campaign_daily
+    description: >
+      Mesures et indicateurs par campagne et par jour (incrémental, partitionné par jour).
+      Lue par Looker Studio. Filtrer ou afficher data_mode : Google Ads est simulé.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [date, platform, campaign_id]
+    columns:
+      - name: date
+        data_tests: [not_null]
+      - name: platform
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [google_ads, meta_ads]
+      - name: ctr
+        description: clics / impressions
+      - name: cpc
+        description: dépense / clics
+      - name: cpa
+        description: dépense / conversions
+      - name: conversion_rate
+        description: conversions / clics
+      - name: roas
+        description: valeur des conversions / dépense
+      - name: data_mode
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [real, simulated]
+
+  - name: mart_platform_monthly
+    description: Synthèse mensuelle par plateforme, ratios recalculés depuis les sommes.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [month, platform, currency, data_mode]
+
+  - name: dim_campaign
+    description: Une ligne par campagne, avec son nom le plus récent.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [platform, campaign_id]
+
+unit_tests:
+  - name: ratios_are_null_when_the_denominator_is_zero
+    model: mart_campaign_daily
+    overrides:
+      macros:
+        is_incremental: false
+    given:
+      - input: ref('int_campaign_daily')
+        rows:
+          - {date: 2026-10-01, platform: meta_ads, campaign_id: c1, impressions: 0, clicks: 0, spend: 0, conversions: 0, conversion_value: 0}
+          - {date: 2026-10-01, platform: meta_ads, campaign_id: c2, impressions: 100, clicks: 10, spend: 20, conversions: 2, conversion_value: 50}
+    expect:
+      rows:
+        - {campaign_id: c1, ctr: null, cpc: null, cpa: null, conversion_rate: null, roas: null}
+        - {campaign_id: c2, ctr: 0.1, cpc: 2.0, cpa: 10.0, conversion_rate: 0.2, roas: 2.5}
+
+  - name: monthly_ratios_come_from_sums
+    model: mart_platform_monthly
+    given:
+      - input: ref('mart_campaign_daily')
+        rows:
+          - {date: 2026-10-01, platform: meta_ads, currency: EUR, data_mode: real, campaign_id: c1, clicks: 1, impressions: 100, spend: 1, conversions: 1, conversion_value: 4}
+          - {date: 2026-10-02, platform: meta_ads, currency: EUR, data_mode: real, campaign_id: c1, clicks: 99, impressions: 100, spend: 99, conversions: 1, conversion_value: 96}
+    expect:
+      rows:
+        - {month: 2026-10-01, platform: meta_ads, clicks: 100, ctr: 0.5, roas: 1.0}

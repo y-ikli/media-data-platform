@@ -1,0 +1,15 @@
+version: 2
+
+models:
+  - name: int_campaign_daily
+    description: Union des plateformes ; grain = plateforme × campagne × jour.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [date, platform, campaign_id]
+    columns:
+      - name: platform
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [google_ads, meta_ads]

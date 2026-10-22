@@ -1,0 +1,57 @@
+version: 2
+
+models:
+  - name: stg_google_ads__campaign_daily
+    description: Google Ads typé, dédupliqué, coût en unités de la devise.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [date, campaign_id]
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "clicks <= impressions"
+    columns: &common_columns
+      - name: date
+        data_tests: [not_null]
+      - name: platform
+        data_tests: [not_null]
+      - name: campaign_id
+        data_tests: [not_null]
+      - name: currency
+        data_tests: [not_null]
+      - name: spend
+        description: Dépense dans la devise de la colonne currency.
+        data_tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: ">= 0"
+      - name: data_mode
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [real, simulated]
+
+  - name: stg_meta_ads__campaign_daily
+    description: Meta Ads typé, dédupliqué.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [date, campaign_id]
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "clicks <= impressions"
+    columns: *common_columns
+
+unit_tests:
+  - name: google_ads_keeps_the_latest_ingestion_and_converts_micros
+    model: stg_google_ads__campaign_daily
+    given:
+      - input: source('ads_raw', 'google_ads_campaign_daily')
+        rows:
+          - {date: 2026-10-01, campaign_id: c1, cost_micros: 1000000, currency_code: EUR, impressions: 10, clicks: 1, ingested_at: "2026-10-02 06:00:00", data_mode: simulated}
+          - {date: 2026-10-01, campaign_id: c1, cost_micros: 12340000, currency_code: EUR, impressions: 20, clicks: 2, ingested_at: "2026-10-03 06:00:00", data_mode: simulated}
+    expect:
+      rows:
+        - {date: 2026-10-01, campaign_id: c1, spend: 12.34, impressions: 20, platform: google_ads}

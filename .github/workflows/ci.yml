@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.0
+      - run: uv sync --locked
+      - name: Lint
+        run: uv run ruff check .
+      - name: Mise en forme
+        run: uv run ruff format --check .
+      - name: Typage
+        run: uv run mypy
+      - name: Tests et couverture
+        run: uv run pytest --cov
+
+  dbt:
+    runs-on: ubuntu-latest
+    env:
+      # dbt parse lit le projet sans se connecter : une valeur factice suffit.
+      GCP_PROJECT_ID: ci-sans-connexion
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.0
+      - run: uv sync --locked --group dbt
+      - name: SQL (sqlfluff)
+        run: uv run sqlfluff lint dbt/models dbt/tests dbt/macros
+      - name: Lecture du projet dbt
+        working-directory: dbt
+        run: |
+          uv run dbt deps --profiles-dir .
+          uv run dbt parse --profiles-dir . --no-partial-parse
+
+  terraform:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@v7
+      - uses: hashicorp/setup-terraform@v4
+      - run: terraform fmt -check -recursive
+      - run: terraform init -backend=false -input=false
+      - run: terraform validate

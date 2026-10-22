@@ -1,0 +1,21 @@
+# Pipeline quotidien : les ingestions en parallèle, puis dbt.
+# Chaque appel attend la fin du job ; si un job échoue, le workflow s'arrête en erreur.
+main:
+  steps:
+    - ingest:
+        parallel:
+          branches:
+%{ for source, job in ingest_jobs ~}
+            - ${source}:
+                steps:
+                  - run_${source}:
+                      call: googleapis.run.v2.projects.locations.jobs.run
+                      args:
+                        name: projects/${project}/locations/${region}/jobs/${job}
+%{ endfor ~}
+    - transform:
+        call: googleapis.run.v2.projects.locations.jobs.run
+        args:
+          name: projects/${project}/locations/${region}/jobs/${transform_job}
+    - done:
+        return: pipeline termine

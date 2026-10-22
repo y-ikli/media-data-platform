@@ -1,0 +1,53 @@
+# Déploie l'image du pipeline après une CI verte sur main.
+# Authentification sans clé (Workload Identity Federation) : voir infra/wif.tf.
+# Variables du dépôt à déclarer (Settings → Secrets and variables → Actions → Variables) :
+# GCP_PROJECT_ID, GCP_REGION, GCP_WORKLOAD_IDENTITY_PROVIDER, GCP_DEPLOYER_SERVICE_ACCOUNT
+# (les valeurs sont affichées par `terraform output github_actions`).
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    env:
+      REGISTRY: ${{ vars.GCP_REGION }}-docker.pkg.dev
+      IMAGE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/pipeline/adsdata:${{ github.event.workflow_run.head_sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v3
+
+      - name: Construire et pousser l'image
+        run: |
+          gcloud auth configure-docker "$REGISTRY" --quiet
+          docker build -t "$IMAGE" .
+          docker push "$IMAGE"
+
+      - name: Mettre à jour les jobs Cloud Run
+        run: |
+          for job in ingest-google-ads ingest-meta-ads dbt-build; do
+            gcloud run jobs update "$job" --image "$IMAGE" \
+              --region "${{ vars.GCP_REGION }}" --project "${{ vars.GCP_PROJECT_ID }}" --quiet
+          done

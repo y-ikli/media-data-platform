@@ -1,0 +1,52 @@
+# Notes et guides personnels (non publiés)
+notes_projet/
+_guide_looker/
+
+# Outils d'assistance locaux
+.claude/
+CLAUDE.md
+
+# Secrets
+.env
+.env.*
+!.env.example
+*.json.key
+*-key.json
+*credentials*.json
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Caches des outils
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# dbt
+target/
+dbt_packages/
+logs/
+.user.yml
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+tfplan
+*.tfplan
+*.tfvars
+!*.tfvars.example
+crash.log
+
+# Éditeur et système
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
+*.log

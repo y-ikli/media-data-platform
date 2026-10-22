@@ -1,0 +1,2 @@
+# Copier vers terraform.tfvars (ignoré par git) :  cp terraform.tfvars.example terraform.tfvars
+project_id = "ads-media-platform"
