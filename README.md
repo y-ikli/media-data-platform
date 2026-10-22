@@ -1,43 +1,53 @@
-# Media Analytics Platform
+# Media Data Platform
 
-Pipeline ELT qui réunit les performances publicitaires de Meta Ads et de Google Ads dans BigQuery, et produit avec dbt des tables d'analyse fiables, lues dans un tableau de bord Looker Studio.
+**Pipeline ELT de données publicitaires** : les performances de Meta Ads et de Google Ads réunies dans BigQuery, transformées avec dbt en tables d'analyse fiables, avec une seule définition par indicateur.
 
-Auteur : Younes IKLI, Data Engineer · [portfolio](https://y-ikli.github.io)
+Younes IKLI, ingénieur de données · [portfolio](https://y-ikli.github.io)
 
-## Problème
+> **Vérifié sur BigQuery** : `dbt build` passe entièrement (43 étapes sur 43 : 6 modèles, 34 tests de données, 3 tests unitaires) · 129 tests Python, 100 % de couverture.
 
-Une agence marketing pilote ses campagnes sur Meta et sur Google. Chaque plateforme a son format, ses noms de colonnes et ses corrections tardives.
+## Problématique
 
-- Le même indicateur est recalculé différemment d'un tableau de bord à l'autre.
+Une agence marketing pilote ses campagnes sur Meta et sur Google. Chaque plateforme livre ses données dans son propre format, avec ses noms de colonnes et ses corrections tardives.
+
+- Le même indicateur (CTR, CPC, CPA, ROAS) est calculé différemment d'un tableau de bord à l'autre.
 - Comparer les deux plateformes demande un retraitement à la main.
 - Relancer une extraction duplique des lignes, et gonfle les dépenses et les conversions.
 
-## Action
-
-Une seule chaîne, de l'API jusqu'au tableau de bord, relancée chaque jour :
+## Architecture
 
 ```
-Cloud Scheduler ─► Cloud Workflows ─┬─► job ingestion Meta Ads ───┐
-   (07:00)                          └─► job ingestion Google Ads ─┴─► job dbt build
-
 Meta Ads (API réelle) ─┐
                        ├─► contrat de données ─► BigQuery ads_raw ─► dbt : staging ─► intermediate ─► marts ─► Looker Studio
 Google Ads (simulé) ───┘    (lot invalide = rien n'est chargé)
+
+Orchestration prévue : Cloud Scheduler ─► Cloud Workflows ─┬─► ingestion Meta Ads ───┐
+                                                          └─► ingestion Google Ads ─┴─► dbt build
 ```
 
-| Étape | Ce qui est fait | État |
+## Ce que j'ai construit
+
+| Étape | Réalisation | État |
 |---|---|---|
-| Environnement | Python 3.14 géré par uv, versions verrouillées, ruff et contrôle d'identité à chaque commit | fait |
-| Infrastructure | Datasets BigQuery, comptes de service à droits minimaux, registre d'images, jobs, workflow et planification décrits avec Terraform | datasets créés ; déploiement écrit, à appliquer |
+| Environnement | Python 3.14 géré par uv, versions verrouillées, ruff à chaque commit | fait |
 | Ingestion | Un connecteur par plateforme, avec la même interface : ajouter une source = un fichier et un schéma | fait |
 | Validation | Chaque lot est contrôlé contre un contrat de données (types, obligatoires, fenêtre, doublons, règles métier) | fait |
-| Chargement | Table temporaire puis transaction `DELETE` + `INSERT` sur la fenêtre : rejouer un chargement donne le même résultat | fait, vérifié sur BigQuery |
-| Transformation | dbt en trois couches, grain unique (plateforme × campagne × jour), indicateurs définis une seule fois, modèle incrémental | fait |
-| Tests | 129 tests Python (100 % de couverture), 2 tests d'intégration BigQuery, 43 tests et tests unitaires dbt | fait |
+| Chargement | Table temporaire puis transaction `DELETE` + `INSERT` sur la fenêtre de dates : rejouer un chargement donne le même résultat | fait, vérifié sur BigQuery |
+| Transformation | dbt en trois couches, grain unique (plateforme × campagne × jour), indicateurs définis une seule fois, modèle incrémental | fait, vérifié sur BigQuery |
+| Tests | 129 tests Python (100 % de couverture), tests d'intégration BigQuery, 34 tests de données et 3 tests unitaires dbt | fait |
+| Infrastructure | Datasets BigQuery, comptes de service à droits minimaux, registre d'images, jobs, workflow et planification décrits avec Terraform | datasets créés ; déploiement écrit, à appliquer |
 | Déploiement | Image Docker, Cloud Run Jobs, Cloud Workflows, Cloud Scheduler, déploiement depuis GitHub Actions sans clé | écrit, à appliquer |
 | Restitution | Tables `ads_marts` prêtes pour Looker Studio : rentabilité par campagne, comparaison Meta / Google | tables prêtes ; tableau de bord à construire |
 
-Les données Google Ads sont simulées et étiquetées `data_mode = simulated` jusque dans les tables finales. Meta Ads se lit sur l'API réelle (`--mode real`) ; tant que les accès ne sont pas configurés, il tourne aussi en simulé, avec la même étiquette.
+Les données Google Ads sont simulées et étiquetées `data_mode = simulated` jusque dans les tables finales. Meta Ads se lit sur l'API réelle (`--mode real`) ; sans accès configurés, il tourne aussi en simulé, avec la même étiquette.
+
+## Les tables produites
+
+| Table | Contenu |
+|---|---|
+| `mart_campaign_daily` | Une ligne par plateforme, campagne et jour : dépenses, impressions, clics, conversions, CTR, CPC, CPA, ROAS. Incrémentale, partitionnée par jour. |
+| `mart_platform_monthly` | Comparaison mensuelle Meta / Google, avec des ratios recalculés depuis les sommes |
+| `dim_campaign` | Le référentiel des campagnes des deux plateformes |
 
 ## Ce qui rend le pipeline fiable
 
