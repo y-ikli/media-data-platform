@@ -25,6 +25,10 @@ Orchestration prévue : Cloud Scheduler ─► Cloud Workflows ─┬─► inge
                                                           └─► ingestion Google Ads ─┴─► dbt build
 ```
 
+### Lignage dbt
+
+![Lignage dbt](docs/images/dbt_lignage.png)
+
 ## Ce que j'ai construit
 
 | Étape | Réalisation | État |
@@ -48,6 +52,8 @@ Les données Google Ads sont simulées et étiquetées `data_mode = simulated` j
 | `mart_campaign_daily` | Une ligne par plateforme, campagne et jour : dépenses, impressions, clics, conversions, CTR, CPC, CPA, ROAS. Incrémentale, partitionnée par jour. |
 | `mart_platform_monthly` | Comparaison mensuelle Meta / Google, avec des ratios recalculés depuis les sommes |
 | `dim_campaign` | Le référentiel des campagnes des deux plateformes |
+
+![Documentation dbt de mart_campaign_daily](docs/images/dbt_modele_mart.png)
 
 ## Ce qui rend le pipeline fiable
 
