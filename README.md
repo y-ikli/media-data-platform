@@ -2,10 +2,6 @@
 
 **Pipeline ELT de données publicitaires** : les performances de Meta Ads et de Google Ads réunies dans BigQuery, transformées avec dbt en tables d'analyse fiables, avec une seule définition par indicateur.
 
-Younes IKLI, ingénieur de données · [portfolio](https://y-ikli.github.io)
-
-> **Vérifié sur BigQuery** : `dbt build` passe entièrement (43 étapes sur 43 : 6 modèles, 34 tests de données, 3 tests unitaires) · 129 tests Python, 100 % de couverture.
-
 ## Problématique
 
 Une agence marketing pilote ses campagnes sur Meta et sur Google. Chaque plateforme livre ses données dans son propre format, avec ses noms de colonnes et ses corrections tardives.
@@ -24,18 +20,6 @@ Google Ads (simulé) ───┘    (lot invalide = rien n'est chargé)
 Orchestration prévue : Cloud Scheduler ─► Cloud Workflows ─┬─► ingestion Meta Ads ───┐
                                                           └─► ingestion Google Ads ─┴─► dbt build
 ```
-
-### dbt Core sur BigQuery
-
-![dbt build sur BigQuery](docs/images/dbt_build.png)
-
-### Tables finales dans BigQuery
-
-![Tables finales dans BigQuery](docs/images/bigquery.png)
-
-### Lignage dbt
-
-![Lignage dbt](docs/images/dbt_lignage.png)
 
 ## Ce que j'ai construit
 
@@ -62,6 +46,23 @@ Les données Google Ads sont simulées et étiquetées `data_mode = simulated` j
 | `dim_campaign` | Le référentiel des campagnes des deux plateformes |
 
 ![Documentation dbt de mart_campaign_daily](docs/images/dbt_modele_mart.png)
+
+## Résultats
+
+- `dbt build` passe entièrement sur BigQuery : 43 étapes sur 43 (6 modèles, 34 tests de données, 3 tests unitaires).
+- 129 tests Python, avec 100 % de couverture du code d'ingestion.
+
+### dbt Core sur BigQuery
+
+![dbt build sur BigQuery](docs/images/dbt_build.png)
+
+### Tables finales dans BigQuery
+
+![Tables finales dans BigQuery](docs/images/bigquery.png)
+
+### Lignage dbt
+
+![Lignage dbt](docs/images/dbt_lignage.png)
 
 ## Ce qui rend le pipeline fiable
 
@@ -132,3 +133,7 @@ infra/                Terraform : BigQuery, IAM, Artifact Registry, Cloud Run, W
 tests/                tests unitaires et d'intégration
 Dockerfile            une image pour l'ingestion et dbt
 ```
+
+---
+
+Auteur : Younes IKLI · [portfolio](https://y-ikli.github.io)
