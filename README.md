@@ -45,24 +45,10 @@ Les données Google Ads sont simulées et étiquetées `data_mode = simulated` j
 | `mart_platform_monthly` | Comparaison mensuelle Meta / Google, avec des ratios recalculés depuis les sommes |
 | `dim_campaign` | Le référentiel des campagnes des deux plateformes |
 
-![Documentation dbt de mart_campaign_daily](docs/images/dbt_modele_mart.png)
-
 ## Résultats
 
 - `dbt build` passe entièrement sur BigQuery : 43 étapes sur 43 (6 modèles, 34 tests de données, 3 tests unitaires).
 - 129 tests Python, avec 100 % de couverture du code d'ingestion.
-
-### dbt Core sur BigQuery
-
-![dbt build sur BigQuery](docs/images/dbt_build.png)
-
-### Tables finales dans BigQuery
-
-![Tables finales dans BigQuery](docs/images/bigquery.png)
-
-### Lignage dbt
-
-![Lignage dbt](docs/images/dbt_lignage.png)
 
 ## Ce qui rend le pipeline fiable
 
